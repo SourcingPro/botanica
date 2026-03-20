@@ -1,0 +1,1804 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Botanica — Mes Plantes</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --green-900: #0d1f0f;
+    --green-800: #1a3a1c;
+    --green-700: #234d25;
+    --green-600: #2d6130;
+    --green-500: #3a7d3e;
+    --green-400: #52a857;
+    --green-300: #7dc882;
+    --green-200: #b4e0b7;
+    --green-100: #e0f2e1;
+    --green-50: #f2faf2;
+    --sage: #8aad8c;
+    --cream: #f7f3ee;
+    --bark: #5c4a3a;
+    --gold: #c9a84c;
+    --white: #ffffff;
+    --text-dark: #1a2e1b;
+    --text-mid: #3d5c40;
+    --text-light: #7a9b7d;
+    --border: rgba(45, 97, 48, 0.15);
+    --shadow: 0 4px 24px rgba(13, 31, 15, 0.12);
+    --shadow-lg: 0 8px 40px rgba(13, 31, 15, 0.18);
+    --radius: 16px;
+    --radius-sm: 10px;
+    --nav-h: 72px;
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  html, body {
+    height: 100%; width: 100%;
+    background: var(--green-900);
+    font-family: 'DM Sans', sans-serif;
+    color: var(--text-dark);
+    overflow: hidden;
+  }
+
+  /* ── APP SHELL ── */
+  #app {
+    width: 100%; height: 100%;
+    display: flex; flex-direction: column;
+    background: var(--cream);
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* ── HEADER ── */
+  .app-header {
+    background: var(--green-800);
+    padding: 52px 20px 16px;
+    display: flex; align-items: flex-end; justify-content: space-between;
+    flex-shrink: 0;
+    position: relative;
+    overflow: hidden;
+  }
+  .app-header::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: radial-gradient(ellipse at 80% 0%, rgba(58,125,62,0.3) 0%, transparent 60%);
+    pointer-events: none;
+  }
+  .header-leaf {
+    position: absolute; right: -10px; top: -10px;
+    font-size: 80px; opacity: 0.08; transform: rotate(-20deg);
+    pointer-events: none; user-select: none;
+  }
+  .header-title { position: relative; z-index: 1; }
+  .header-title h1 {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 28px; font-weight: 300; letter-spacing: 0.04em;
+    color: var(--white);
+  }
+  .header-title .subtitle {
+    font-size: 11px; color: var(--green-300);
+    letter-spacing: 0.12em; text-transform: uppercase;
+    margin-top: 2px;
+  }
+  .header-date {
+    font-size: 11px; color: var(--green-300);
+    letter-spacing: 0.06em; text-align: right;
+    position: relative; z-index: 1;
+  }
+  .header-date .day-num {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 32px; font-weight: 300; color: var(--white);
+    display: block; line-height: 1;
+  }
+
+  /* ── NAV TABS ── */
+  .nav-tabs {
+    background: var(--green-800);
+    display: flex; padding: 0 16px 12px;
+    gap: 4px; flex-shrink: 0;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+  }
+  .nav-tab {
+    flex: 1; padding: 8px 4px;
+    background: transparent; border: none;
+    color: var(--sage); font-family: 'DM Sans', sans-serif;
+    font-size: 11px; font-weight: 400;
+    letter-spacing: 0.06em; text-transform: uppercase;
+    cursor: pointer; border-radius: 8px;
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+    transition: all 0.2s;
+  }
+  .nav-tab .tab-icon { font-size: 18px; }
+  .nav-tab.active {
+    background: rgba(255,255,255,0.1);
+    color: var(--white);
+  }
+
+  /* ── CONTENT AREA ── */
+  .content-area {
+    flex: 1; overflow-y: auto; overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: calc(20px + var(--safe-bottom));
+  }
+
+  /* ── VIEWS ── */
+  .view { display: none; animation: fadeUp 0.3s ease; }
+  .view.active { display: block; }
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(12px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ── SECTION HEADER ── */
+  .section-header {
+    padding: 20px 20px 12px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .section-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 22px; font-weight: 400; color: var(--text-dark);
+  }
+  .section-count {
+    font-size: 11px; color: var(--text-light);
+    letter-spacing: 0.06em;
+  }
+
+  /* ── BTN ── */
+  .btn {
+    border: none; cursor: pointer;
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 500; border-radius: var(--radius-sm);
+    transition: all 0.15s; display: inline-flex; align-items: center; gap: 6px;
+  }
+  .btn-primary {
+    background: var(--green-700); color: white;
+    padding: 12px 20px; font-size: 14px;
+    box-shadow: 0 2px 12px rgba(45,97,48,0.3);
+  }
+  .btn-primary:active { transform: scale(0.97); }
+  .btn-icon {
+    background: var(--green-700); color: white;
+    width: 38px; height: 38px; border-radius: 50%;
+    font-size: 18px; justify-content: center;
+    box-shadow: 0 2px 10px rgba(45,97,48,0.3);
+  }
+  .btn-ghost {
+    background: transparent; color: var(--text-mid);
+    padding: 8px 14px; font-size: 13px;
+    border: 1px solid var(--border);
+  }
+  .btn-danger {
+    background: #fee2e2; color: #dc2626;
+    padding: 8px 14px; font-size: 13px;
+  }
+
+  /* ── FAB ── */
+  .fab {
+    position: fixed; bottom: calc(20px + var(--safe-bottom));
+    right: 20px; z-index: 50;
+    width: 56px; height: 56px; border-radius: 50%;
+    background: var(--green-600); color: white; border: none;
+    font-size: 26px; cursor: pointer;
+    box-shadow: 0 4px 20px rgba(45,97,48,0.4);
+    display: flex; align-items: center; justify-content: center;
+    transition: transform 0.15s;
+  }
+  .fab:active { transform: scale(0.93); }
+
+  /* ── PLANT CARDS ── */
+  .plants-grid {
+    padding: 0 16px;
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  .plant-card {
+    background: white; border-radius: var(--radius);
+    overflow: hidden; box-shadow: var(--shadow);
+    cursor: pointer; transition: transform 0.15s;
+    position: relative;
+  }
+  .plant-card:active { transform: scale(0.97); }
+  .plant-card-emoji {
+    background: linear-gradient(135deg, var(--green-100), var(--green-200));
+    height: 90px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 40px;
+    position: relative; overflow: hidden;
+  }
+  .plant-card-emoji::after {
+    content: ''; position: absolute; inset: 0;
+    background: linear-gradient(180deg, transparent 50%, rgba(255,255,255,0.3));
+  }
+  .water-badge {
+    position: absolute; top: 8px; right: 8px;
+    background: rgba(13,31,15,0.7);
+    color: white; font-size: 9px; font-weight: 500;
+    padding: 3px 7px; border-radius: 20px;
+    letter-spacing: 0.04em;
+    backdrop-filter: blur(4px);
+  }
+  .plant-card-info { padding: 10px 12px 12px; }
+  .plant-card-name {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 15px; font-weight: 600; color: var(--text-dark);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .plant-card-species {
+    font-size: 11px; color: var(--text-light);
+    margin-top: 2px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .plant-card-next {
+    margin-top: 8px; font-size: 11px;
+    display: flex; align-items: center; gap: 4px;
+  }
+  .next-soon { color: #dc7c2a; }
+  .next-ok { color: var(--green-500); }
+  .next-overdue { color: #dc2626; }
+
+  /* ── EMPTY STATE ── */
+  .empty-state {
+    text-align: center; padding: 60px 30px;
+  }
+  .empty-state .empty-icon { font-size: 56px; margin-bottom: 16px; opacity: 0.6; }
+  .empty-state h3 {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 20px; color: var(--text-mid); margin-bottom: 8px;
+  }
+  .empty-state p { font-size: 13px; color: var(--text-light); line-height: 1.5; }
+
+  /* ── TODAY VIEW ── */
+  .today-hero {
+    background: linear-gradient(135deg, var(--green-800), var(--green-700));
+    margin: 16px; border-radius: var(--radius);
+    padding: 20px; color: white;
+    display: flex; align-items: center; gap: 16px;
+    box-shadow: var(--shadow-lg);
+    position: relative; overflow: hidden;
+  }
+  .today-hero::before {
+    content: '🌿';
+    position: absolute; right: 12px; bottom: -8px;
+    font-size: 64px; opacity: 0.12; transform: rotate(15deg);
+  }
+  .today-hero-count {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 48px; font-weight: 300; line-height: 1;
+  }
+  .today-hero-label { font-size: 12px; color: var(--green-200); }
+  .today-hero-divider {
+    width: 1px; height: 40px; background: rgba(255,255,255,0.2);
+  }
+  .today-hero-right { flex: 1; }
+  .today-hero-right .big { font-size: 15px; font-weight: 500; margin-bottom: 4px; }
+  .today-hero-right .small { font-size: 12px; color: var(--green-200); line-height: 1.4; }
+
+  .todo-list { padding: 0 16px; display: flex; flex-direction: column; gap: 8px; }
+  .todo-item {
+    background: white; border-radius: var(--radius-sm);
+    padding: 14px 16px;
+    display: flex; align-items: center; gap: 12px;
+    box-shadow: 0 2px 8px rgba(13,31,15,0.06);
+    transition: all 0.2s;
+  }
+  .todo-item.done { opacity: 0.5; }
+  .todo-item.done .todo-label { text-decoration: line-through; }
+  .todo-check {
+    width: 24px; height: 24px; border-radius: 50%;
+    border: 2px solid var(--green-400);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; flex-shrink: 0; transition: all 0.2s;
+    background: transparent;
+  }
+  .todo-check.checked { background: var(--green-500); border-color: var(--green-500); }
+  .todo-check.checked::after { content: '✓'; color: white; font-size: 13px; font-weight: 700; }
+  .todo-info { flex: 1; }
+  .todo-label { font-size: 14px; color: var(--text-dark); font-weight: 400; }
+  .todo-plant { font-size: 11px; color: var(--text-light); margin-top: 2px; }
+  .todo-emoji { font-size: 20px; flex-shrink: 0; }
+
+  /* ── PLANNING VIEW ── */
+  .calendar-nav {
+    padding: 12px 16px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .cal-arrow {
+    background: white; border: 1px solid var(--border);
+    width: 36px; height: 36px; border-radius: 50%;
+    font-size: 16px; cursor: pointer; display: flex;
+    align-items: center; justify-content: center;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  }
+  .cal-month-label {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 18px; color: var(--text-dark); text-align: center;
+  }
+  .week-strip {
+    padding: 0 16px 12px;
+    display: flex; gap: 6px; overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .week-strip::-webkit-scrollbar { display: none; }
+  .week-day {
+    flex-shrink: 0; width: 44px;
+    display: flex; flex-direction: column; align-items: center;
+    gap: 4px; padding: 8px 0; border-radius: var(--radius-sm);
+    cursor: pointer; transition: all 0.15s;
+    background: white; box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+  }
+  .week-day .wd-name { font-size: 10px; color: var(--text-light); text-transform: uppercase; letter-spacing: 0.05em; }
+  .week-day .wd-num {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 18px; color: var(--text-dark); line-height: 1;
+  }
+  .week-day .wd-dot { width: 5px; height: 5px; border-radius: 50%; background: transparent; }
+  .week-day.has-tasks .wd-dot { background: var(--green-500); }
+  .week-day.selected { background: var(--green-700); }
+  .week-day.selected .wd-name,
+  .week-day.selected .wd-num { color: white; }
+  .week-day.selected .wd-dot { background: var(--green-200); }
+  .week-day.is-today .wd-num { color: var(--green-600); }
+
+  .day-tasks { padding: 0 16px; }
+  .day-tasks-header {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 16px; color: var(--text-dark);
+    padding: 8px 0 12px;
+  }
+  .planning-task {
+    background: white; border-radius: var(--radius-sm);
+    padding: 12px 14px; margin-bottom: 8px;
+    display: flex; align-items: center; gap: 10px;
+    box-shadow: 0 1px 6px rgba(0,0,0,0.05);
+  }
+  .planning-task-icon { font-size: 22px; flex-shrink: 0; }
+  .planning-task-info { flex: 1; }
+  .planning-task-name { font-size: 13px; font-weight: 500; color: var(--text-dark); }
+  .planning-task-type { font-size: 11px; color: var(--text-light); margin-top: 2px; }
+  .planning-task-del {
+    background: none; border: none; color: var(--text-light);
+    font-size: 16px; cursor: pointer; padding: 4px;
+  }
+
+  /* ── MODAL ── */
+  .modal-backdrop {
+    position: fixed; inset: 0; z-index: 100;
+    background: rgba(13,31,15,0.6);
+    backdrop-filter: blur(4px);
+    display: flex; align-items: flex-end;
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.25s;
+  }
+  .modal-backdrop.open { opacity: 1; pointer-events: all; }
+  .modal {
+    width: 100%; background: var(--cream);
+    border-radius: 24px 24px 0 0;
+    max-height: 90vh; overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    transform: translateY(40px);
+    transition: transform 0.3s cubic-bezier(0.16,1,0.3,1);
+    padding-bottom: calc(20px + var(--safe-bottom));
+  }
+  .modal-backdrop.open .modal { transform: translateY(0); }
+  .modal-handle {
+    width: 36px; height: 4px; border-radius: 2px;
+    background: rgba(0,0,0,0.15);
+    margin: 12px auto 4px;
+  }
+  .modal-header {
+    padding: 12px 20px 16px;
+    display: flex; align-items: center; justify-content: space-between;
+    border-bottom: 1px solid var(--border);
+  }
+  .modal-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 20px; color: var(--text-dark);
+  }
+  .modal-close {
+    background: rgba(0,0,0,0.06); border: none;
+    width: 30px; height: 30px; border-radius: 50%;
+    font-size: 14px; cursor: pointer; color: var(--text-mid);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .modal-body { padding: 20px; }
+
+  /* ── FORM ── */
+  .form-group { margin-bottom: 16px; }
+  .form-label {
+    display: block; font-size: 11px; font-weight: 500;
+    color: var(--text-mid); letter-spacing: 0.08em;
+    text-transform: uppercase; margin-bottom: 6px;
+  }
+  .form-input, .form-select, .form-textarea {
+    width: 100%; border: 1.5px solid var(--border);
+    background: white; border-radius: var(--radius-sm);
+    padding: 12px 14px; font-family: 'DM Sans', sans-serif;
+    font-size: 15px; color: var(--text-dark);
+    outline: none; appearance: none;
+    transition: border-color 0.15s;
+  }
+  .form-input:focus, .form-select:focus, .form-textarea:focus {
+    border-color: var(--green-500);
+  }
+  .form-textarea { min-height: 100px; resize: none; line-height: 1.5; }
+  .emoji-picker {
+    display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px;
+  }
+  .emoji-opt {
+    width: 44px; height: 44px; border-radius: 10px;
+    border: 2px solid transparent; font-size: 22px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; background: white;
+    transition: all 0.15s;
+  }
+  .emoji-opt.selected { border-color: var(--green-500); background: var(--green-50); }
+  .water-rhythm {
+    display: flex; gap: 8px; flex-wrap: wrap;
+  }
+  .rhythm-opt {
+    flex: 1; min-width: 60px; padding: 10px 8px;
+    border: 1.5px solid var(--border); border-radius: var(--radius-sm);
+    background: white; cursor: pointer; text-align: center;
+    font-size: 12px; color: var(--text-mid);
+    transition: all 0.15s; font-family: 'DM Sans', sans-serif;
+  }
+  .rhythm-opt.selected { border-color: var(--green-500); color: var(--green-700); background: var(--green-50); font-weight: 500; }
+  .rhythm-num { font-family: 'Cormorant Garamond', serif; font-size: 22px; display: block; }
+
+  /* ── PLANT DETAIL ── */
+  .plant-detail-hero {
+    background: linear-gradient(135deg, var(--green-100), var(--green-200));
+    padding: 24px; text-align: center;
+  }
+  .plant-detail-emoji { font-size: 64px; margin-bottom: 12px; }
+  .plant-detail-name {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 26px; font-weight: 400; color: var(--text-dark);
+  }
+  .plant-detail-species { font-size: 13px; color: var(--text-mid); margin-top: 4px; font-style: italic; }
+  .plant-detail-body { padding: 20px; }
+  .detail-section { margin-bottom: 20px; }
+  .detail-section-title {
+    font-size: 10px; font-weight: 500; color: var(--text-light);
+    letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 8px;
+  }
+  .detail-info-card {
+    background: white; border-radius: var(--radius-sm);
+    padding: 14px; box-shadow: 0 1px 6px rgba(0,0,0,0.05);
+  }
+  .detail-info-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 6px 0; border-bottom: 1px solid var(--border);
+  }
+  .detail-info-row:last-child { border-bottom: none; }
+  .detail-info-label { font-size: 12px; color: var(--text-light); }
+  .detail-info-value { font-size: 13px; color: var(--text-dark); font-weight: 500; }
+  .detail-notes {
+    background: white; border-radius: var(--radius-sm);
+    padding: 14px; font-size: 13px; color: var(--text-mid);
+    line-height: 1.6; box-shadow: 0 1px 6px rgba(0,0,0,0.05);
+    white-space: pre-wrap;
+  }
+  .water-btn-row {
+    display: flex; gap: 10px; margin-top: 4px;
+  }
+
+  /* ── AI CHAT ── */
+  .ai-hero {
+    background: linear-gradient(135deg, var(--green-800), var(--green-900));
+    margin: 16px; border-radius: var(--radius);
+    padding: 18px; color: white;
+    display: flex; align-items: center; gap: 14px;
+    box-shadow: var(--shadow-lg);
+  }
+  .ai-orb {
+    width: 44px; height: 44px; border-radius: 50%;
+    background: linear-gradient(135deg, var(--green-400), var(--green-600));
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px; flex-shrink: 0;
+    box-shadow: 0 2px 12px rgba(58,125,62,0.4);
+  }
+  .ai-hero-text h3 { font-size: 15px; font-weight: 500; margin-bottom: 3px; }
+  .ai-hero-text p { font-size: 12px; color: var(--green-200); line-height: 1.4; }
+
+  .chat-messages {
+    padding: 0 16px 16px;
+    display: flex; flex-direction: column; gap: 12px;
+    max-height: 45vh; overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .chat-msg { display: flex; gap: 8px; }
+  .chat-msg.user { flex-direction: row-reverse; }
+  .chat-bubble {
+    max-width: 80%; padding: 12px 14px;
+    border-radius: 16px; font-size: 13px; line-height: 1.5;
+  }
+  .chat-msg.ai .chat-bubble {
+    background: white; color: var(--text-dark);
+    border-radius: 4px 16px 16px 16px;
+    box-shadow: 0 1px 6px rgba(0,0,0,0.06);
+  }
+  .chat-msg.user .chat-bubble {
+    background: var(--green-700); color: white;
+    border-radius: 16px 4px 16px 16px;
+  }
+  .chat-avatar {
+    width: 28px; height: 28px; border-radius: 50%;
+    background: var(--green-100); display: flex; align-items: center;
+    justify-content: center; font-size: 14px; flex-shrink: 0;
+    align-self: flex-end;
+  }
+  .chat-msg.user .chat-avatar { background: var(--green-700); }
+  .chat-input-row {
+    padding: 12px 16px;
+    display: flex; gap: 10px; align-items: center;
+    border-top: 1px solid var(--border);
+    background: var(--cream);
+    position: sticky; bottom: 0;
+  }
+  .chat-input {
+    flex: 1; border: 1.5px solid var(--border);
+    background: white; border-radius: 24px;
+    padding: 11px 16px; font-family: 'DM Sans', sans-serif;
+    font-size: 14px; color: var(--text-dark); outline: none;
+  }
+  .chat-input:focus { border-color: var(--green-400); }
+  .chat-send {
+    width: 42px; height: 42px; border-radius: 50%;
+    background: var(--green-700); border: none;
+    color: white; font-size: 16px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; transition: transform 0.15s;
+  }
+  .chat-send:active { transform: scale(0.93); }
+  .typing-indicator {
+    display: flex; gap: 4px; align-items: center; padding: 4px 0;
+  }
+  .typing-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--text-light);
+    animation: typingBounce 1.2s infinite;
+  }
+  .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+  .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes typingBounce {
+    0%,80%,100% { transform: translateY(0); }
+    40% { transform: translateY(-6px); }
+  }
+
+  /* ── SETTINGS ── */
+  .settings-section { padding: 16px; }
+  .settings-card {
+    background: white; border-radius: var(--radius);
+    overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    margin-bottom: 16px;
+  }
+  .settings-row {
+    padding: 14px 16px;
+    display: flex; align-items: center; justify-content: space-between;
+    border-bottom: 1px solid var(--border); font-size: 14px;
+    color: var(--text-dark);
+  }
+  .settings-row:last-child { border-bottom: none; }
+  .settings-row .row-icon { font-size: 18px; margin-right: 10px; }
+  .settings-row-left { display: flex; align-items: center; }
+  .settings-row .row-val { font-size: 13px; color: var(--text-light); }
+  .settings-key-input {
+    width: 100%; border: 1.5px solid var(--border);
+    background: var(--green-50); border-radius: 8px;
+    padding: 10px 12px; font-family: 'DM Sans', sans-serif;
+    font-size: 13px; color: var(--text-dark); outline: none;
+  }
+  .settings-key-input:focus { border-color: var(--green-500); }
+
+  .tag { display: inline-flex; align-items: center; gap: 4px;
+    padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 500; }
+  .tag-water { background: #dbeafe; color: #2563eb; }
+  .tag-fert { background: #fef3c7; color: #d97706; }
+  .tag-repot { background: #ede9fe; color: #7c3aed; }
+  .tag-trim { background: #fee2e2; color: #dc2626; }
+  .tag-custom { background: var(--green-100); color: var(--green-700); }
+
+  /* ── TOAST ── */
+  .toast {
+    position: fixed; bottom: calc(90px + var(--safe-bottom));
+    left: 50%; transform: translateX(-50%) translateY(20px);
+    background: var(--green-800); color: white;
+    padding: 10px 18px; border-radius: 24px;
+    font-size: 13px; z-index: 200;
+    opacity: 0; transition: all 0.3s; white-space: nowrap;
+    pointer-events: none;
+    box-shadow: var(--shadow-lg);
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* ── SUPABASE CONFIG BANNER ── */
+  .config-banner {
+    margin: 16px; background: #fff7ed;
+    border: 1px solid #fed7aa; border-radius: var(--radius);
+    padding: 14px; font-size: 12px; color: #92400e;
+    line-height: 1.5;
+  }
+  .config-banner strong { color: #78350f; }
+
+  .ai-suggestions {
+    padding: 0 16px 12px;
+    display: flex; gap: 8px; overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .ai-suggestions::-webkit-scrollbar { display: none; }
+  .ai-chip {
+    flex-shrink: 0; background: white;
+    border: 1px solid var(--border); border-radius: 20px;
+    padding: 7px 14px; font-size: 12px; color: var(--text-mid);
+    cursor: pointer; white-space: nowrap;
+    transition: all 0.15s;
+  }
+  .ai-chip:active { background: var(--green-50); border-color: var(--green-400); color: var(--green-700); }
+
+  /* scrollbar hidden globally */
+  ::-webkit-scrollbar { display: none; }
+</style>
+</head>
+<body>
+
+<div id="app">
+  <!-- HEADER -->
+  <div class="app-header">
+    <div class="header-leaf">🌿</div>
+    <div class="header-title">
+      <h1>Botanica</h1>
+      <div class="subtitle">Mon jardin intérieur</div>
+    </div>
+    <div class="header-date">
+      <span class="day-num" id="headerDay"></span>
+      <span id="headerDate"></span>
+    </div>
+  </div>
+
+  <!-- NAV TABS -->
+  <div class="nav-tabs">
+    <button class="nav-tab active" onclick="switchTab('today')" id="tab-today">
+      <span class="tab-icon">☀️</span>Aujourd'hui
+    </button>
+    <button class="nav-tab" onclick="switchTab('plants')" id="tab-plants">
+      <span class="tab-icon">🪴</span>Plantes
+    </button>
+    <button class="nav-tab" onclick="switchTab('planning')" id="tab-planning">
+      <span class="tab-icon">📅</span>Planning
+    </button>
+    <button class="nav-tab" onclick="switchTab('ai')" id="tab-ai">
+      <span class="tab-icon">✨</span>IA
+    </button>
+    <button class="nav-tab" onclick="switchTab('settings')" id="tab-settings">
+      <span class="tab-icon">⚙️</span>Réglages
+    </button>
+  </div>
+
+  <!-- CONTENT -->
+  <div class="content-area">
+
+    <!-- TODAY VIEW -->
+    <div class="view active" id="view-today">
+      <div id="todayHero"></div>
+      <div class="section-header">
+        <span class="section-title">À faire aujourd'hui</span>
+        <span class="section-count" id="todayProgress"></span>
+      </div>
+      <div class="todo-list" id="todoList"></div>
+    </div>
+
+    <!-- PLANTS VIEW -->
+    <div class="view" id="view-plants">
+      <div class="section-header">
+        <span class="section-title">Mes plantes</span>
+        <span class="section-count" id="plantsCount"></span>
+      </div>
+      <div class="plants-grid" id="plantsGrid"></div>
+      <div style="height:80px"></div>
+    </div>
+
+    <!-- PLANNING VIEW -->
+    <div class="view" id="view-planning">
+      <div class="calendar-nav">
+        <button class="cal-arrow" onclick="shiftWeek(-1)">‹</button>
+        <span class="cal-month-label" id="calMonthLabel"></span>
+        <button class="cal-arrow" onclick="shiftWeek(1)">›</button>
+      </div>
+      <div class="week-strip" id="weekStrip"></div>
+      <div class="day-tasks">
+        <div class="day-tasks-header" id="dayTasksHeader"></div>
+        <div id="dayTasksList"></div>
+        <div style="height:80px"></div>
+      </div>
+    </div>
+
+    <!-- AI VIEW -->
+    <div class="view" id="view-ai">
+      <div class="ai-hero">
+        <div class="ai-orb">🌿</div>
+        <div class="ai-hero-text">
+          <h3>Conseil botanique IA</h3>
+          <p>Posez vos questions sur vos plantes,<br>je suis là pour vous aider !</p>
+        </div>
+      </div>
+      <div class="ai-suggestions" id="aiSuggestions"></div>
+      <div class="chat-messages" id="chatMessages"></div>
+      <div class="chat-input-row">
+        <input type="text" class="chat-input" id="chatInput"
+          placeholder="Posez une question..." maxlength="500">
+        <button class="chat-send" onclick="sendChat()">↑</button>
+      </div>
+    </div>
+
+    <!-- SETTINGS VIEW -->
+    <div class="view" id="view-settings">
+      <div class="settings-section">
+        <div class="section-title" style="margin-bottom:16px">Réglages</div>
+
+        <div class="settings-card">
+          <div class="settings-row">
+            <div class="settings-row-left"><span class="row-icon">🤖</span> Clé API Gemini</div>
+          </div>
+          <div style="padding:12px 16px">
+            <input type="password" class="settings-key-input" id="geminiKeyInput"
+              placeholder="Collez votre clé API Gemini ici...">
+            <button class="btn btn-primary" style="margin-top:10px;width:100%" onclick="saveGeminiKey()">
+              Enregistrer la clé
+            </button>
+          </div>
+        </div>
+
+        <div class="settings-card">
+          <div class="settings-row">
+            <div class="settings-row-left"><span class="row-icon">🗄️</span> Supabase URL</div>
+          </div>
+          <div style="padding:12px 16px 0">
+            <input type="text" class="settings-key-input" id="supabaseUrlInput"
+              placeholder="https://xxxx.supabase.co">
+          </div>
+          <div class="settings-row" style="border-top:1px solid var(--border)">
+            <div class="settings-row-left"><span class="row-icon">🔑</span> Supabase Anon Key</div>
+          </div>
+          <div style="padding:12px 16px">
+            <input type="password" class="settings-key-input" id="supabaseKeyInput"
+              placeholder="eyJ...">
+            <button class="btn btn-primary" style="margin-top:10px;width:100%" onclick="saveSupabase()">
+              Connecter Supabase
+            </button>
+            <div id="supabaseStatus" style="margin-top:8px;font-size:12px;color:var(--text-light)"></div>
+          </div>
+        </div>
+
+        <div class="settings-card">
+          <div class="settings-row" onclick="exportData()" style="cursor:pointer">
+            <div class="settings-row-left"><span class="row-icon">📤</span> Exporter mes données</div>
+            <span>›</span>
+          </div>
+          <div class="settings-row" onclick="confirmImport()" style="cursor:pointer">
+            <div class="settings-row-left"><span class="row-icon">📥</span> Importer des données</div>
+            <span>›</span>
+          </div>
+          <div class="settings-row" onclick="confirmClear()" style="cursor:pointer;color:#dc2626">
+            <div class="settings-row-left"><span class="row-icon">🗑️</span> Effacer toutes les données</div>
+            <span>›</span>
+          </div>
+        </div>
+
+        <div style="text-align:center;padding:20px;font-size:11px;color:var(--text-light)">
+          Botanica v1.0 · Fait avec 🌿
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /content-area -->
+</div><!-- /app -->
+
+<!-- FAB -->
+<button class="fab" id="fabBtn" onclick="openFab()">＋</button>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<!-- ────────── MODALS ────────── -->
+
+<!-- Add / Edit Plant Modal -->
+<div class="modal-backdrop" id="modalPlant">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-header">
+      <span class="modal-title" id="modalPlantTitle">Nouvelle plante</span>
+      <button class="modal-close" onclick="closeModal('modalPlant')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Icône</label>
+        <div class="emoji-picker" id="emojiPicker"></div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Nom de la plante *</label>
+        <input type="text" class="form-input" id="plantName" placeholder="ex: Mon Monstera">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Espèce / variété</label>
+        <input type="text" class="form-input" id="plantSpecies" placeholder="ex: Monstera deliciosa">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Rythme d'arrosage</label>
+        <div class="water-rhythm" id="waterRhythm"></div>
+        <div style="margin-top:8px;display:flex;align-items:center;gap:8px">
+          <span style="font-size:12px;color:var(--text-light)">Ou saisir :</span>
+          <input type="number" class="form-input" id="waterCustom"
+            placeholder="ex: 5" min="1" max="60" style="width:80px;padding:8px 10px">
+          <span style="font-size:12px;color:var(--text-light)">jours</span>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Dernier arrosage</label>
+        <input type="date" class="form-input" id="lastWatered">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Exposition lumière</label>
+        <select class="form-select" id="plantLight">
+          <option value="">— Choisir —</option>
+          <option value="Plein soleil">☀️ Plein soleil</option>
+          <option value="Lumière indirecte">🌤️ Lumière indirecte</option>
+          <option value="Mi-ombre">⛅ Mi-ombre</option>
+          <option value="Ombre">🌑 Ombre</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Notes & conseils personnels</label>
+        <textarea class="form-textarea" id="plantNotes"
+          placeholder="Conseils, observations, rappels…"></textarea>
+      </div>
+      <button class="btn btn-primary" style="width:100%" onclick="savePlant()">
+        💾 Enregistrer
+      </button>
+      <div id="deletePlantRow" style="margin-top:10px;display:none">
+        <button class="btn btn-danger" style="width:100%" onclick="deletePlant()">
+          🗑️ Supprimer cette plante
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Plant Detail Modal -->
+<div class="modal-backdrop" id="modalDetail">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-header">
+      <span class="modal-title">Fiche plante</span>
+      <button class="modal-close" onclick="closeModal('modalDetail')">✕</button>
+    </div>
+    <div id="modalDetailBody"></div>
+  </div>
+</div>
+
+<!-- Add Task Modal -->
+<div class="modal-backdrop" id="modalTask">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-header">
+      <span class="modal-title">Ajouter une tâche</span>
+      <button class="modal-close" onclick="closeModal('modalTask')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Plante concernée</label>
+        <select class="form-select" id="taskPlant">
+          <option value="">— Toutes / Aucune —</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Type de tâche</label>
+        <select class="form-select" id="taskType">
+          <option value="water">💧 Arrosage</option>
+          <option value="fert">🌱 Fertilisation</option>
+          <option value="repot">🪣 Rempotage</option>
+          <option value="trim">✂️ Taille</option>
+          <option value="custom">📝 Personnalisée</option>
+        </select>
+      </div>
+      <div class="form-group" id="taskCustomGroup" style="display:none">
+        <label class="form-label">Description</label>
+        <input type="text" class="form-input" id="taskCustomLabel" placeholder="Décrivez la tâche…">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Date</label>
+        <input type="date" class="form-input" id="taskDate">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Répétition</label>
+        <select class="form-select" id="taskRepeat">
+          <option value="0">Pas de répétition</option>
+          <option value="1">Chaque jour</option>
+          <option value="2">Tous les 2 jours</option>
+          <option value="3">Tous les 3 jours</option>
+          <option value="7">Chaque semaine</option>
+          <option value="14">Toutes les 2 semaines</option>
+          <option value="30">Chaque mois</option>
+        </select>
+      </div>
+      <button class="btn btn-primary" style="width:100%" onclick="saveTask()">
+        💾 Enregistrer la tâche
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════
+//  STATE & STORAGE
+// ═══════════════════════════════════════════════
+let state = {
+  plants: [],
+  tasks: [],   // {id, plantId, type, label, date, repeat, done:[]}
+  todoChecked: {}, // {taskId_dateStr: true}
+  geminiKey: '',
+  supabaseUrl: '',
+  supabaseKey: '',
+  chatHistory: []
+};
+let editingPlantId = null;
+let selectedWaterRhythm = 7;
+let selectedEmoji = '🪴';
+let calWeekOffset = 0;
+let selectedCalDay = null; // dateStr
+let supabaseConnected = false;
+
+const EMOJIS = ['🪴','🌿','🌱','🌸','🌺','🌻','🌹','🍃','🎋','🎍','🌵','🌴','🍀','🌾','🌷','🏵️','🌼','💐','🍁','🍂'];
+const WATER_RHYTHMS = [1,2,3,5,7,10,14,21,30];
+const TASK_LABELS = {water:'Arrosage',fert:'Fertilisation',repot:'Rempotage',trim:'Taille',custom:'Tâche'};
+const TASK_ICONS = {water:'💧',fert:'🌱',repot:'🪣',trim:'✂️',custom:'📝'};
+const TASK_TAGS = {water:'tag-water',fert:'tag-fert',repot:'tag-repot',trim:'tag-trim',custom:'tag-custom'};
+
+// ── INIT ──────────────────────────────────────
+window.addEventListener('DOMContentLoaded', async () => {
+  loadLocal();
+  renderHeader();
+  renderTabs();
+  loadSettingsUI();
+  await trySupabaseInit();
+  renderAll();
+  setupChatInput();
+});
+
+function loadLocal() {
+  try {
+    const s = localStorage.getItem('botanica_state');
+    if (s) {
+      const parsed = JSON.parse(s);
+      state = {...state, ...parsed};
+    }
+  } catch(e) {}
+}
+
+function saveLocal() {
+  try {
+    localStorage.setItem('botanica_state', JSON.stringify(state));
+  } catch(e) {}
+}
+
+async function trySupabaseInit() {
+  if (state.supabaseUrl && state.supabaseKey) {
+    supabaseConnected = await testSupabase();
+    if (supabaseConnected) {
+      await loadFromSupabase();
+    }
+  }
+}
+
+// ── SUPABASE HELPERS ───────────────────────────
+async function supabaseReq(path, method='GET', body=null) {
+  const headers = {
+    'apikey': state.supabaseKey,
+    'Authorization': `Bearer ${state.supabaseKey}`,
+    'Content-Type': 'application/json',
+    'Prefer': method==='POST' ? 'return=representation' : ''
+  };
+  const res = await fetch(state.supabaseUrl + '/rest/v1/' + path, {
+    method, headers,
+    body: body ? JSON.stringify(body) : undefined
+  });
+  if (!res.ok) throw new Error('Supabase ' + res.status);
+  const text = await res.text();
+  return text ? JSON.parse(text) : null;
+}
+
+async function testSupabase() {
+  try {
+    await supabaseReq('botanica_data?select=key&limit=1');
+    return true;
+  } catch(e) {
+    return false;
+  }
+}
+
+async function loadFromSupabase() {
+  try {
+    const rows = await supabaseReq('botanica_data?select=key,value');
+    if (!rows || !rows.length) return;
+    const map = {};
+    rows.forEach(r => { map[r.key] = r.value; });
+    if (map.plants) state.plants = JSON.parse(map.plants);
+    if (map.tasks)  state.tasks  = JSON.parse(map.tasks);
+    if (map.todoChecked) state.todoChecked = JSON.parse(map.todoChecked);
+    saveLocal();
+  } catch(e) { console.warn('Supabase load error', e); }
+}
+
+async function saveToSupabase() {
+  if (!supabaseConnected) return;
+  const rows = [
+    {key:'plants',  value: JSON.stringify(state.plants)},
+    {key:'tasks',   value: JSON.stringify(state.tasks)},
+    {key:'todoChecked', value: JSON.stringify(state.todoChecked)}
+  ];
+  try {
+    await supabaseReq('botanica_data?on_conflict=key', 'POST', rows);
+  } catch(e) { console.warn('Supabase save error', e); }
+}
+
+async function persistAll() {
+  saveLocal();
+  await saveToSupabase();
+}
+
+// ── RENDER ALL ─────────────────────────────────
+function renderAll() {
+  renderHeader();
+  renderToday();
+  renderPlants();
+  renderPlanning();
+  renderAISuggestions();
+}
+
+// ── HEADER ─────────────────────────────────────
+function renderHeader() {
+  const now = new Date();
+  document.getElementById('headerDay').textContent = now.getDate();
+  document.getElementById('headerDate').textContent =
+    now.toLocaleDateString('fr-FR', {weekday:'short', month:'short'}).replace(/^\w/, c=>c.toUpperCase());
+}
+
+// ── TAB SWITCH ─────────────────────────────────
+function switchTab(name) {
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  document.getElementById('view-' + name).classList.add('active');
+
+  const fab = document.getElementById('fabBtn');
+  if (name === 'plants')    { fab.style.display='flex'; fab.textContent='＋'; }
+  else if (name === 'planning') { fab.style.display='flex'; fab.textContent='＋'; }
+  else { fab.style.display='none'; }
+
+  if (name === 'today')    renderToday();
+  if (name === 'plants')   renderPlants();
+  if (name === 'planning') renderPlanning();
+}
+
+function openFab() {
+  const active = document.querySelector('.nav-tab.active').id;
+  if (active === 'tab-plants') openAddPlant();
+  if (active === 'tab-planning') openAddTask();
+}
+
+// ════════════════════════════════════════════════
+//  TODAY VIEW
+// ════════════════════════════════════════════════
+function todayStr() {
+  return new Date().toISOString().slice(0,10);
+}
+
+function getTasksForDate(dateStr) {
+  const tasks = [];
+  state.tasks.forEach(task => {
+    if (taskOccursOn(task, dateStr)) tasks.push(task);
+  });
+  // Add auto-watering tasks from plants
+  state.plants.forEach(plant => {
+    if (!plant.waterDays || plant.waterDays < 1) return;
+    const last = plant.lastWatered ? new Date(plant.lastWatered) : null;
+    if (!last) return;
+    // generate dates from lastWatered going forward
+    const target = new Date(dateStr);
+    const diff = Math.round((target - last) / 86400000);
+    if (diff > 0 && diff % plant.waterDays === 0) {
+      // Check there's no manual water task for this plant on this date
+      const hasManual = state.tasks.some(t =>
+        t.type === 'water' && t.plantId === plant.id && taskOccursOn(t, dateStr));
+      if (!hasManual) {
+        tasks.push({
+          id: 'auto_' + plant.id + '_' + dateStr,
+          plantId: plant.id,
+          type: 'water',
+          label: 'Arrosage',
+          date: dateStr,
+          repeat: plant.waterDays,
+          isAuto: true
+        });
+      }
+    }
+  });
+  return tasks;
+}
+
+function taskOccursOn(task, dateStr) {
+  if (task.isAuto) return false;
+  if (task.date === dateStr) return true;
+  if (!task.repeat || task.repeat < 1) return false;
+  const start = new Date(task.date);
+  const target = new Date(dateStr);
+  if (target < start) return false;
+  const diff = Math.round((target - start) / 86400000);
+  return diff % task.repeat === 0;
+}
+
+function renderToday() {
+  const ds = todayStr();
+  const tasks = getTasksForDate(ds);
+  const done = tasks.filter(t => state.todoChecked[t.id + '_' + ds]);
+  const total = tasks.length;
+
+  // Hero
+  const hero = document.getElementById('todayHero');
+  hero.innerHTML = `
+    <div class="today-hero">
+      <div>
+        <div class="today-hero-count">${total - done.length}</div>
+        <div class="today-hero-label">tâche${(total-done.length)!==1?'s':''} restante${(total-done.length)!==1?'s':''}</div>
+      </div>
+      <div class="today-hero-divider"></div>
+      <div class="today-hero-right">
+        <div class="big">${total === 0 ? 'Rien à faire 🎉' : done.length === total ? 'Tout terminé ! 🌟' : `${done.length}/${total} complétées`}</div>
+        <div class="small">${formatDate(new Date(), true)}</div>
+      </div>
+    </div>`;
+
+  // Progress
+  document.getElementById('todayProgress').textContent =
+    total > 0 ? `${done.length}/${total}` : '';
+
+  // List
+  const list = document.getElementById('todoList');
+  if (tasks.length === 0) {
+    list.innerHTML = `<div class="empty-state">
+      <div class="empty-icon">🌿</div>
+      <h3>Rien à faire aujourd'hui !</h3>
+      <p>Profitez de cette journée tranquille avec vos plantes.</p>
+    </div>`;
+    return;
+  }
+
+  list.innerHTML = tasks.map(t => {
+    const plant = t.plantId ? state.plants.find(p => p.id === t.plantId) : null;
+    const checkKey = t.id + '_' + ds;
+    const isDone = !!state.todoChecked[checkKey];
+    return `<div class="todo-item ${isDone?'done':''}" id="todo_${checkKey}">
+      <div class="todo-emoji">${plant ? plant.emoji : TASK_ICONS[t.type]}</div>
+      <div class="todo-info">
+        <div class="todo-label">${TASK_LABELS[t.type] || t.label}</div>
+        <div class="todo-plant">${plant ? plant.name : 'Général'}</div>
+      </div>
+      <div class="todo-check ${isDone?'checked':''}" onclick="toggleTodo('${checkKey}', '${t.plantId||''}', '${t.type}', '${t.id}')"></div>
+    </div>`;
+  }).join('');
+}
+
+async function toggleTodo(checkKey, plantId, type, taskId) {
+  state.todoChecked[checkKey] = !state.todoChecked[checkKey];
+  // If watering completed, update lastWatered
+  if (state.todoChecked[checkKey] && type === 'water' && plantId) {
+    const plant = state.plants.find(p => p.id === plantId);
+    if (plant) {
+      plant.lastWatered = todayStr();
+      showToast(`💧 ${plant.name} arrosé·e !`);
+    }
+  }
+  await persistAll();
+  renderToday();
+}
+
+// ════════════════════════════════════════════════
+//  PLANTS VIEW
+// ════════════════════════════════════════════════
+function renderPlants() {
+  const grid = document.getElementById('plantsGrid');
+  document.getElementById('plantsCount').textContent =
+    state.plants.length + ' plante' + (state.plants.length!==1?'s':'');
+
+  if (!state.plants.length) {
+    grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1">
+      <div class="empty-icon">🪴</div>
+      <h3>Aucune plante encore</h3>
+      <p>Appuyez sur ＋ pour ajouter votre première plante !</p>
+    </div>`;
+    return;
+  }
+
+  grid.innerHTML = state.plants.map(p => {
+    const {label, cls} = getNextWater(p);
+    return `<div class="plant-card" onclick="openDetail('${p.id}')">
+      <div class="plant-card-emoji">
+        ${p.emoji || '🪴'}
+        <div class="water-badge">💧 ${p.waterDays||'?'}j</div>
+      </div>
+      <div class="plant-card-info">
+        <div class="plant-card-name">${p.name}</div>
+        <div class="plant-card-species">${p.species||'—'}</div>
+        <div class="plant-card-next ${cls}">
+          <span>${cls==='next-overdue'?'⚠️':'💧'}</span>${label}
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function getNextWater(plant) {
+  if (!plant.lastWatered || !plant.waterDays) return {label:'Non défini', cls:'next-ok'};
+  const last = new Date(plant.lastWatered);
+  const next = new Date(last);
+  next.setDate(next.getDate() + plant.waterDays);
+  const today = new Date(); today.setHours(0,0,0,0);
+  const diff = Math.round((next - today) / 86400000);
+  if (diff < 0)  return {label:`En retard de ${-diff}j`, cls:'next-overdue'};
+  if (diff === 0) return {label:'Aujourd\'hui !', cls:'next-soon'};
+  if (diff === 1) return {label:'Demain', cls:'next-soon'};
+  return {label:`Dans ${diff} jours`, cls:'next-ok'};
+}
+
+// ── PLANT FORM ─────────────────────────────────
+function openAddPlant() {
+  editingPlantId = null;
+  document.getElementById('modalPlantTitle').textContent = 'Nouvelle plante';
+  document.getElementById('plantName').value = '';
+  document.getElementById('plantSpecies').value = '';
+  document.getElementById('plantNotes').value = '';
+  document.getElementById('plantLight').value = '';
+  document.getElementById('waterCustom').value = '';
+  document.getElementById('lastWatered').value = todayStr();
+  document.getElementById('deletePlantRow').style.display = 'none';
+  selectedWaterRhythm = 7; selectedEmoji = '🪴';
+  renderEmojiPicker(); renderWaterRhythm();
+  openModal('modalPlant');
+}
+
+function openEditPlant(id) {
+  const p = state.plants.find(x => x.id===id);
+  if (!p) return;
+  editingPlantId = id;
+  document.getElementById('modalPlantTitle').textContent = 'Modifier la plante';
+  document.getElementById('plantName').value = p.name;
+  document.getElementById('plantSpecies').value = p.species||'';
+  document.getElementById('plantNotes').value = p.notes||'';
+  document.getElementById('plantLight').value = p.light||'';
+  document.getElementById('lastWatered').value = p.lastWatered||todayStr();
+  document.getElementById('deletePlantRow').style.display = 'block';
+  selectedEmoji = p.emoji||'🪴';
+  selectedWaterRhythm = p.waterDays||7;
+  document.getElementById('waterCustom').value =
+    WATER_RHYTHMS.includes(p.waterDays) ? '' : (p.waterDays||'');
+  renderEmojiPicker(); renderWaterRhythm();
+  closeModal('modalDetail');
+  openModal('modalPlant');
+}
+
+function renderEmojiPicker() {
+  document.getElementById('emojiPicker').innerHTML = EMOJIS.map(e =>
+    `<div class="emoji-opt ${e===selectedEmoji?'selected':''}" onclick="selectEmoji('${e}')">${e}</div>`
+  ).join('');
+}
+
+function selectEmoji(e) { selectedEmoji=e; renderEmojiPicker(); }
+
+function renderWaterRhythm() {
+  document.getElementById('waterRhythm').innerHTML = WATER_RHYTHMS.map(n =>
+    `<div class="rhythm-opt ${n===selectedWaterRhythm?'selected':''}" onclick="selectRhythm(${n})">
+      <span class="rhythm-num">${n}</span>j
+    </div>`
+  ).join('');
+}
+
+function selectRhythm(n) {
+  selectedWaterRhythm = n;
+  document.getElementById('waterCustom').value = '';
+  renderWaterRhythm();
+}
+
+async function savePlant() {
+  const name = document.getElementById('plantName').value.trim();
+  if (!name) { showToast('⚠️ Donnez un nom à la plante'); return; }
+  const custom = parseInt(document.getElementById('waterCustom').value);
+  const waterDays = custom > 0 ? custom : selectedWaterRhythm;
+
+  const plant = {
+    id: editingPlantId || uid(),
+    name,
+    species: document.getElementById('plantSpecies').value.trim(),
+    notes: document.getElementById('plantNotes').value.trim(),
+    light: document.getElementById('plantLight').value,
+    emoji: selectedEmoji,
+    waterDays,
+    lastWatered: document.getElementById('lastWatered').value || todayStr()
+  };
+
+  if (editingPlantId) {
+    const idx = state.plants.findIndex(p => p.id===editingPlantId);
+    if (idx >= 0) state.plants[idx] = plant;
+  } else {
+    state.plants.push(plant);
+  }
+
+  await persistAll();
+  closeModal('modalPlant');
+  renderAll();
+  showToast(editingPlantId ? '✅ Plante mise à jour !' : '🌱 Plante ajoutée !');
+}
+
+async function deletePlant() {
+  if (!editingPlantId) return;
+  if (!confirm('Supprimer cette plante définitivement ?')) return;
+  state.plants = state.plants.filter(p => p.id !== editingPlantId);
+  state.tasks  = state.tasks.filter(t => t.plantId !== editingPlantId);
+  await persistAll();
+  closeModal('modalPlant');
+  renderAll();
+  showToast('🗑️ Plante supprimée');
+}
+
+// ── PLANT DETAIL ───────────────────────────────
+function openDetail(id) {
+  const p = state.plants.find(x => x.id===id);
+  if (!p) return;
+  const {label, cls} = getNextWater(p);
+  document.getElementById('modalDetailBody').innerHTML = `
+    <div class="plant-detail-hero">
+      <div class="plant-detail-emoji">${p.emoji||'🪴'}</div>
+      <div class="plant-detail-name">${p.name}</div>
+      <div class="plant-detail-species">${p.species||''}</div>
+    </div>
+    <div class="plant-detail-body">
+      <div class="detail-section">
+        <div class="detail-section-title">Informations</div>
+        <div class="detail-info-card">
+          <div class="detail-info-row">
+            <span class="detail-info-label">💧 Arrosage</span>
+            <span class="detail-info-value">Tous les ${p.waterDays||'?'} jours</span>
+          </div>
+          <div class="detail-info-row">
+            <span class="detail-info-label">📅 Dernier arrosage</span>
+            <span class="detail-info-value">${p.lastWatered ? formatDate(new Date(p.lastWatered)) : '—'}</span>
+          </div>
+          <div class="detail-info-row">
+            <span class="detail-info-label">⏭️ Prochain arrosage</span>
+            <span class="detail-info-value ${cls}">${label}</span>
+          </div>
+          <div class="detail-info-row">
+            <span class="detail-info-label">☀️ Lumière</span>
+            <span class="detail-info-value">${p.light||'—'}</span>
+          </div>
+        </div>
+      </div>
+      ${p.notes ? `<div class="detail-section">
+        <div class="detail-section-title">Notes personnelles</div>
+        <div class="detail-notes">${escHtml(p.notes)}</div>
+      </div>` : ''}
+      <div class="water-btn-row">
+        <button class="btn btn-primary" style="flex:1" onclick="waterNow('${p.id}')">
+          💧 Arroser maintenant
+        </button>
+        <button class="btn btn-ghost" onclick="openEditPlant('${p.id}')">
+          ✏️ Modifier
+        </button>
+      </div>
+    </div>`;
+  openModal('modalDetail');
+}
+
+async function waterNow(id) {
+  const plant = state.plants.find(p => p.id===id);
+  if (!plant) return;
+  plant.lastWatered = todayStr();
+  // Also mark the today todo if exists
+  const ds = todayStr();
+  const tasks = getTasksForDate(ds);
+  tasks.forEach(t => {
+    if (t.plantId === id && t.type === 'water') {
+      state.todoChecked[t.id + '_' + ds] = true;
+    }
+  });
+  await persistAll();
+  closeModal('modalDetail');
+  renderAll();
+  showToast(`💧 ${plant.name} arrosé·e !`);
+}
+
+// ════════════════════════════════════════════════
+//  PLANNING VIEW
+// ════════════════════════════════════════════════
+function renderPlanning() {
+  const today = new Date();
+  const weekStart = new Date(today);
+  weekStart.setDate(today.getDate() + calWeekOffset * 7 - today.getDay() + 1);
+
+  // Month label
+  document.getElementById('calMonthLabel').textContent =
+    today.toLocaleDateString('fr-FR', {month:'long', year:'numeric'})
+      .replace(/^\w/, c => c.toUpperCase());
+
+  // Week strip
+  const strip = document.getElementById('weekStrip');
+  const days = [];
+  for (let i=0; i<14; i++) {
+    const d = new Date(weekStart);
+    d.setDate(weekStart.getDate() + i);
+    days.push(d);
+  }
+
+  if (!selectedCalDay) selectedCalDay = todayStr();
+
+  strip.innerHTML = days.map(d => {
+    const ds = d.toISOString().slice(0,10);
+    const tasks = getTasksForDate(ds);
+    const isToday = ds === todayStr();
+    const isSel = ds === selectedCalDay;
+    return `<div class="week-day ${tasks.length?'has-tasks':''} ${isSel?'selected':''} ${isToday&&!isSel?'is-today':''}"
+      onclick="selectDay('${ds}')">
+      <span class="wd-name">${d.toLocaleDateString('fr-FR',{weekday:'short'}).slice(0,3)}</span>
+      <span class="wd-num">${d.getDate()}</span>
+      <div class="wd-dot"></div>
+    </div>`;
+  }).join('');
+
+  renderDayTasks();
+}
+
+function selectDay(ds) {
+  selectedCalDay = ds;
+  renderPlanning();
+}
+
+function shiftWeek(dir) { calWeekOffset += dir; renderPlanning(); }
+
+function renderDayTasks() {
+  if (!selectedCalDay) return;
+  const d = new Date(selectedCalDay);
+  document.getElementById('dayTasksHeader').textContent =
+    formatDate(d, true);
+
+  const tasks = getTasksForDate(selectedCalDay);
+  const el = document.getElementById('dayTasksList');
+  if (!tasks.length) {
+    el.innerHTML = `<div style="text-align:center;padding:30px;color:var(--text-light);font-size:13px">
+      Aucune tâche ce jour-là 🌿<br>
+      <button class="btn btn-ghost" style="margin-top:12px" onclick="openAddTaskForDate('${selectedCalDay}')">
+        + Ajouter une tâche
+      </button>
+    </div>`;
+    return;
+  }
+
+  el.innerHTML = tasks.map(t => {
+    const plant = t.plantId ? state.plants.find(p=>p.id===t.plantId) : null;
+    return `<div class="planning-task">
+      <div class="planning-task-icon">${plant ? plant.emoji : TASK_ICONS[t.type]}</div>
+      <div class="planning-task-info">
+        <div class="planning-task-name">${plant ? plant.name : 'Général'}</div>
+        <div class="planning-task-type">
+          <span class="tag ${TASK_TAGS[t.type]}">${TASK_ICONS[t.type]} ${TASK_LABELS[t.type]||t.label}</span>
+          ${t.repeat > 0 ? `<span style="font-size:10px;color:var(--text-light);margin-left:6px">🔄 tous les ${t.repeat}j</span>` : ''}
+          ${t.isAuto ? '<span style="font-size:10px;color:var(--text-light);margin-left:6px">automatique</span>' : ''}
+        </div>
+      </div>
+      ${!t.isAuto ? `<button class="planning-task-del" onclick="deleteTask('${t.id}')">🗑️</button>` : ''}
+    </div>`;
+  }).join('');
+}
+
+// ── TASK FORM ──────────────────────────────────
+function openAddTask() {
+  openAddTaskForDate(selectedCalDay || todayStr());
+}
+
+function openAddTaskForDate(dateStr) {
+  document.getElementById('taskDate').value = dateStr || todayStr();
+  const sel = document.getElementById('taskPlant');
+  sel.innerHTML = '<option value="">— Toutes / Aucune —</option>' +
+    state.plants.map(p => `<option value="${p.id}">${p.emoji} ${p.name}</option>`).join('');
+  document.getElementById('taskType').value = 'water';
+  document.getElementById('taskRepeat').value = '0';
+  document.getElementById('taskCustomGroup').style.display = 'none';
+  document.getElementById('taskType').onchange = () => {
+    document.getElementById('taskCustomGroup').style.display =
+      document.getElementById('taskType').value === 'custom' ? 'block' : 'none';
+  };
+  openModal('modalTask');
+}
+
+async function saveTask() {
+  const type = document.getElementById('taskType').value;
+  const label = type === 'custom' ?
+    document.getElementById('taskCustomLabel').value.trim() : TASK_LABELS[type];
+  const task = {
+    id: uid(),
+    plantId: document.getElementById('taskPlant').value || null,
+    type,
+    label,
+    date: document.getElementById('taskDate').value || todayStr(),
+    repeat: parseInt(document.getElementById('taskRepeat').value) || 0
+  };
+  state.tasks.push(task);
+  await persistAll();
+  closeModal('modalTask');
+  renderAll();
+  showToast('📅 Tâche ajoutée !');
+}
+
+async function deleteTask(id) {
+  state.tasks = state.tasks.filter(t => t.id !== id);
+  await persistAll();
+  renderAll();
+  showToast('🗑️ Tâche supprimée');
+}
+
+// ════════════════════════════════════════════════
+//  AI CHAT (GEMINI)
+// ════════════════════════════════════════════════
+const AI_SUGGESTIONS = [
+  'Pourquoi mes feuilles jaunissent ?',
+  'Conseils pour un Monstera',
+  'Comment fertiliser en été ?',
+  'Ma plante a des parasites',
+  'Adapter l\'arrosage en hiver',
+];
+
+function renderAISuggestions() {
+  document.getElementById('aiSuggestions').innerHTML = AI_SUGGESTIONS.map(s =>
+    `<div class="ai-chip" onclick="sendChatMsg('${s}')">${s}</div>`
+  ).join('');
+}
+
+function setupChatInput() {
+  const input = document.getElementById('chatInput');
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChat(); }
+  });
+}
+
+function sendChat() {
+  const input = document.getElementById('chatInput');
+  const msg = input.value.trim();
+  if (!msg) return;
+  input.value = '';
+  sendChatMsg(msg);
+}
+
+async function sendChatMsg(msg) {
+  if (!state.geminiKey) {
+    showToast('⚠️ Ajoutez votre clé Gemini dans Réglages');
+    switchTab('settings');
+    return;
+  }
+
+  // Build context from plants
+  const plantsCtx = state.plants.length
+    ? 'Mes plantes : ' + state.plants.map(p =>
+        `${p.name} (${p.species||'?'}), arrosage tous les ${p.waterDays||'?'}j, lumière: ${p.light||'?'}`
+      ).join('; ')
+    : '';
+
+  appendChatMsg('user', msg);
+  state.chatHistory.push({role:'user', parts:[{text: msg}]});
+
+  const typingEl = appendTyping();
+
+  try {
+    const systemPrompt = `Tu es un expert en plantes d'intérieur et jardinage. Réponds en français, de manière concise et pratique. ${plantsCtx}`;
+    const contents = [
+      {role:'user', parts:[{text: systemPrompt}]},
+      ...state.chatHistory
+    ];
+
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${state.geminiKey}`,
+      {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({contents, generationConfig:{maxOutputTokens:600}})
+      }
+    );
+    const data = await res.json();
+    const reply = data.candidates?.[0]?.content?.parts?.[0]?.text || 'Désolé, je n\'ai pas pu répondre.';
+    typingEl.remove();
+    appendChatMsg('ai', reply);
+    state.chatHistory.push({role:'model', parts:[{text:reply}]});
+    // Keep history short
+    if (state.chatHistory.length > 20) state.chatHistory = state.chatHistory.slice(-20);
+  } catch(e) {
+    typingEl.remove();
+    appendChatMsg('ai', '❌ Erreur de connexion à Gemini. Vérifiez votre clé API.');
+  }
+}
+
+function appendChatMsg(role, text) {
+  const el = document.createElement('div');
+  el.className = 'chat-msg ' + role;
+  el.innerHTML = `
+    <div class="chat-avatar">${role==='ai'?'🌿':'🙂'}</div>
+    <div class="chat-bubble">${escHtml(text).replace(/\n/g,'<br>')}</div>`;
+  const container = document.getElementById('chatMessages');
+  container.appendChild(el);
+  container.scrollTop = container.scrollHeight;
+  return el;
+}
+
+function appendTyping() {
+  const el = document.createElement('div');
+  el.className = 'chat-msg ai';
+  el.innerHTML = `<div class="chat-avatar">🌿</div>
+    <div class="chat-bubble">
+      <div class="typing-indicator">
+        <div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div>
+      </div>
+    </div>`;
+  const container = document.getElementById('chatMessages');
+  container.appendChild(el);
+  container.scrollTop = container.scrollHeight;
+  return el;
+}
+
+// ════════════════════════════════════════════════
+//  SETTINGS
+// ════════════════════════════════════════════════
+function loadSettingsUI() {
+  document.getElementById('geminiKeyInput').value = state.geminiKey || '';
+  document.getElementById('supabaseUrlInput').value = state.supabaseUrl || '';
+  document.getElementById('supabaseKeyInput').value = state.supabaseKey || '';
+}
+
+function saveGeminiKey() {
+  state.geminiKey = document.getElementById('geminiKeyInput').value.trim();
+  saveLocal();
+  showToast('✅ Clé Gemini enregistrée');
+}
+
+async function saveSupabase() {
+  state.supabaseUrl = document.getElementById('supabaseUrlInput').value.trim().replace(/\/$/, '');
+  state.supabaseKey = document.getElementById('supabaseKeyInput').value.trim();
+  saveLocal();
+  const status = document.getElementById('supabaseStatus');
+  status.textContent = '⏳ Connexion en cours…';
+  const ok = await testSupabase();
+  if (ok) {
+    supabaseConnected = true;
+    await createSupabaseTable();
+    await saveToSupabase();
+    status.textContent = '✅ Supabase connecté !';
+    showToast('✅ Supabase connecté !');
+  } else {
+    status.textContent = '❌ Connexion échouée. Vérifiez vos identifiants et que la table "botanica_data" existe.';
+    showSupabaseSetup();
+  }
+}
+
+async function createSupabaseTable() {
+  // Try to create the table via RPC if it doesn't exist (best effort)
+  try {
+    await supabaseReq('botanica_data?select=key&limit=1');
+  } catch(e) {
+    // Table might not exist, show instructions
+    showSupabaseSetup();
+  }
+}
+
+function showSupabaseSetup() {
+  const status = document.getElementById('supabaseStatus');
+  status.innerHTML = `❌ Table manquante. Créez-la dans Supabase SQL Editor :<br>
+    <code style="font-size:11px;background:#f3f4f6;padding:4px 6px;border-radius:4px;display:block;margin-top:6px;word-break:break-all">
+    CREATE TABLE botanica_data (key TEXT PRIMARY KEY, value TEXT);<br>
+    ALTER TABLE botanica_data ENABLE ROW LEVEL SECURITY;<br>
+    CREATE POLICY "allow all" ON botanica_data FOR ALL USING (true) WITH CHECK (true);
+    </code>`;
+}
+
+function exportData() {
+  const json = JSON.stringify({plants: state.plants, tasks: state.tasks}, null, 2);
+  const blob = new Blob([json], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'botanica-export.json'; a.click();
+  URL.revokeObjectURL(url);
+}
+
+function confirmImport() {
+  const input = document.createElement('input');
+  input.type = 'file'; input.accept = '.json';
+  input.onchange = async e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const text = await file.text();
+    try {
+      const data = JSON.parse(text);
+      if (data.plants) state.plants = data.plants;
+      if (data.tasks)  state.tasks  = data.tasks;
+      await persistAll();
+      renderAll();
+      showToast('✅ Données importées !');
+    } catch(err) { showToast('❌ Fichier invalide'); }
+  };
+  input.click();
+}
+
+async function confirmClear() {
+  if (!confirm('Effacer TOUTES les données ? Cette action est irréversible.')) return;
+  state.plants = []; state.tasks = []; state.todoChecked = {};
+  await persistAll();
+  renderAll();
+  showToast('🗑️ Données effacées');
+}
+
+// ════════════════════════════════════════════════
+//  MODAL HELPERS
+// ════════════════════════════════════════════════
+function openModal(id) {
+  document.getElementById(id).classList.add('open');
+}
+function closeModal(id) {
+  document.getElementById(id).classList.remove('open');
+}
+// Close on backdrop click
+document.querySelectorAll('.modal-backdrop').forEach(bd => {
+  bd.addEventListener('click', e => {
+    if (e.target === bd) closeModal(bd.id);
+  });
+});
+
+// ════════════════════════════════════════════════
+//  UTILS
+// ════════════════════════════════════════════════
+function uid() {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+}
+
+function formatDate(d, withDay=false) {
+  const opts = {day:'numeric', month:'long'};
+  if (withDay) opts.weekday = 'long';
+  return d.toLocaleDateString('fr-FR', opts)
+    .replace(/^\w/, c => c.toUpperCase());
+}
+
+function escHtml(s) {
+  return String(s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+let toastTimer;
+function showToast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 2500);
+}
+
+// Initial FAB state
+document.getElementById('fabBtn').style.display = 'none';
+
+// ── Refresh today at midnight ──
+setInterval(() => {
+  renderHeader();
+  renderToday();
+}, 60000);
+</script>
+</body>
+</html>
