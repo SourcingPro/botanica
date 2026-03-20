@@ -642,6 +642,21 @@
   }
   .ai-chip:active { background: var(--green-50); border-color: var(--green-400); color: var(--green-700); }
 
+  /* ── WATER QUANTITY ── */
+  .water-qty-options {
+    display: flex; gap: 8px;
+  }
+  .water-qty-opt {
+    flex: 1; padding: 10px 6px;
+    border: 1.5px solid var(--border); border-radius: var(--radius-sm);
+    background: white; cursor: pointer; text-align: center;
+    font-size: 11px; color: var(--text-mid);
+    transition: all 0.15s; font-family: 'DM Sans', sans-serif;
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+  }
+  .water-qty-opt .qty-icon { font-size: 20px; }
+  .water-qty-opt.selected { border-color: #2563eb; color: #2563eb; background: #eff6ff; font-weight: 500; }
+
   /* scrollbar hidden globally */
   ::-webkit-scrollbar { display: none; }
 </style>
@@ -844,6 +859,25 @@
         <input type="date" class="form-input" id="lastWatered">
       </div>
       <div class="form-group">
+        <label class="form-label">Quantité d'eau</label>
+        <div class="water-qty-options" id="waterQtyOptions">
+          <div class="water-qty-opt" data-qty="faible" onclick="selectWaterQty('faible')">
+            <span class="qty-icon">💧</span>Faible
+          </div>
+          <div class="water-qty-opt" data-qty="moyenne" onclick="selectWaterQty('moyenne')">
+            <span class="qty-icon">💧💧</span>Moyenne
+          </div>
+          <div class="water-qty-opt" data-qty="abondante" onclick="selectWaterQty('abondante')">
+            <span class="qty-icon">💧💧💧</span>Abondante
+          </div>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Précisions sur l'arrosage</label>
+        <textarea class="form-textarea" id="plantWaterNotes" style="min-height:70px"
+          placeholder="ex: Arroser jusqu'à ce que l'eau coule, laisser sécher entre deux arrosages…"></textarea>
+      </div>
+      <div class="form-group">
         <label class="form-label">Exposition lumière</label>
         <select class="form-select" id="plantLight">
           <option value="">— Choisir —</option>
@@ -917,15 +951,29 @@
       </div>
       <div class="form-group">
         <label class="form-label">Répétition</label>
-        <select class="form-select" id="taskRepeat">
-          <option value="0">Pas de répétition</option>
-          <option value="1">Chaque jour</option>
-          <option value="2">Tous les 2 jours</option>
-          <option value="3">Tous les 3 jours</option>
-          <option value="7">Chaque semaine</option>
-          <option value="14">Toutes les 2 semaines</option>
-          <option value="30">Chaque mois</option>
-        </select>
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+          <input type="checkbox" id="taskRepeatEnabled" onchange="toggleRepeat()"
+            style="width:18px;height:18px;accent-color:var(--green-600);cursor:pointer">
+          <span style="font-size:13px;color:var(--text-mid)">Répéter cette tâche</span>
+        </div>
+        <div id="taskRepeatGroup" style="display:none">
+          <div style="display:flex;align-items:center;gap:10px">
+            <span style="font-size:13px;color:var(--text-mid);white-space:nowrap">Tous les</span>
+            <input type="range" id="taskRepeatSlider" min="1" max="31" value="7"
+              oninput="updateRepeatLabel()"
+              style="flex:1;accent-color:var(--green-600)">
+            <div style="background:var(--green-700);color:white;border-radius:8px;
+              padding:6px 12px;font-size:14px;font-weight:500;min-width:48px;text-align:center"
+              id="taskRepeatValue">7</div>
+            <span style="font-size:13px;color:var(--text-mid)">j</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;margin-top:6px;
+            font-size:10px;color:var(--text-light);padding:0 2px">
+            <span>1j</span><span>7j</span><span>14j</span><span>21j</span><span>31j</span>
+          </div>
+          <div style="margin-top:8px;font-size:12px;color:var(--text-light);text-align:center"
+            id="taskRepeatDescription"></div>
+        </div>
       </div>
       <button class="btn btn-primary" style="width:100%" onclick="saveTask()">
         💾 Enregistrer la tâche
@@ -950,6 +998,7 @@ let state = {
 let editingPlantId = null;
 let selectedWaterRhythm = 7;
 let selectedEmoji = '🪴';
+let selectedWaterQty = '';
 let calWeekOffset = 0;
 let selectedCalDay = null; // dateStr
 let supabaseConnected = false;
@@ -1263,12 +1312,13 @@ function openAddPlant() {
   document.getElementById('plantName').value = '';
   document.getElementById('plantSpecies').value = '';
   document.getElementById('plantNotes').value = '';
+  document.getElementById('plantWaterNotes').value = '';
   document.getElementById('plantLight').value = '';
   document.getElementById('waterCustom').value = '';
   document.getElementById('lastWatered').value = todayStr();
   document.getElementById('deletePlantRow').style.display = 'none';
-  selectedWaterRhythm = 7; selectedEmoji = '🪴';
-  renderEmojiPicker(); renderWaterRhythm();
+  selectedWaterRhythm = 7; selectedEmoji = '🪴'; selectedWaterQty = '';
+  renderEmojiPicker(); renderWaterRhythm(); renderWaterQty();
   openModal('modalPlant');
 }
 
@@ -1285,9 +1335,11 @@ function openEditPlant(id) {
   document.getElementById('deletePlantRow').style.display = 'block';
   selectedEmoji = p.emoji||'🪴';
   selectedWaterRhythm = p.waterDays||7;
+  selectedWaterQty = p.waterQty||'';
+  document.getElementById('plantWaterNotes').value = p.waterNotes||'';
   document.getElementById('waterCustom').value =
     WATER_RHYTHMS.includes(p.waterDays) ? '' : (p.waterDays||'');
-  renderEmojiPicker(); renderWaterRhythm();
+  renderEmojiPicker(); renderWaterRhythm(); renderWaterQty();
   closeModal('modalDetail');
   openModal('modalPlant');
 }
@@ -1300,12 +1352,43 @@ function renderEmojiPicker() {
 
 function selectEmoji(e) { selectedEmoji=e; renderEmojiPicker(); }
 
+function selectWaterQty(qty) {
+  selectedWaterQty = (selectedWaterQty === qty) ? '' : qty;
+  document.querySelectorAll('.water-qty-opt').forEach(el => {
+    el.classList.toggle('selected', el.dataset.qty === selectedWaterQty);
+  });
+}
+
+function toggleRepeat() {
+  const enabled = document.getElementById('taskRepeatEnabled').checked;
+  document.getElementById('taskRepeatGroup').style.display = enabled ? 'block' : 'none';
+  if (enabled) updateRepeatLabel();
+}
+
+function updateRepeatLabel() {
+  const val = parseInt(document.getElementById('taskRepeatSlider').value);
+  document.getElementById('taskRepeatValue').textContent = val;
+  let desc = '';
+  if (val === 1)       desc = 'Chaque jour';
+  else if (val === 7)  desc = 'Chaque semaine';
+  else if (val === 14) desc = 'Toutes les 2 semaines';
+  else if (val === 30 || val === 31) desc = 'Environ chaque mois';
+  else desc = `Toutes les ${val} nuits`;
+  document.getElementById('taskRepeatDescription').textContent = desc;
+}
+
 function renderWaterRhythm() {
   document.getElementById('waterRhythm').innerHTML = WATER_RHYTHMS.map(n =>
     `<div class="rhythm-opt ${n===selectedWaterRhythm?'selected':''}" onclick="selectRhythm(${n})">
       <span class="rhythm-num">${n}</span>j
     </div>`
   ).join('');
+}
+
+function renderWaterQty() {
+  document.querySelectorAll('.water-qty-opt').forEach(el => {
+    el.classList.toggle('selected', el.dataset.qty === selectedWaterQty);
+  });
 }
 
 function selectRhythm(n) {
@@ -1325,6 +1408,8 @@ async function savePlant() {
     name,
     species: document.getElementById('plantSpecies').value.trim(),
     notes: document.getElementById('plantNotes').value.trim(),
+    waterNotes: document.getElementById('plantWaterNotes').value.trim(),
+    waterQty: selectedWaterQty,
     light: document.getElementById('plantLight').value,
     emoji: selectedEmoji,
     waterDays,
@@ -1360,6 +1445,15 @@ function openDetail(id) {
   const p = state.plants.find(x => x.id===id);
   if (!p) return;
   const {label, cls} = getNextWater(p);
+
+  const qtyIcons = {faible:'💧', moyenne:'💧💧', abondante:'💧💧💧'};
+  const qtyLabels = {faible:'Faible', moyenne:'Moyenne', abondante:'Abondante'};
+  const waterQtyHtml = p.waterQty ? `
+    <div class="detail-info-row">
+      <span class="detail-info-label">🚿 Quantité</span>
+      <span class="detail-info-value">${qtyIcons[p.waterQty]||''} ${qtyLabels[p.waterQty]||p.waterQty}</span>
+    </div>` : '';
+
   document.getElementById('modalDetailBody').innerHTML = `
     <div class="plant-detail-hero">
       <div class="plant-detail-emoji">${p.emoji||'🪴'}</div>
@@ -1368,12 +1462,13 @@ function openDetail(id) {
     </div>
     <div class="plant-detail-body">
       <div class="detail-section">
-        <div class="detail-section-title">Informations</div>
+        <div class="detail-section-title">Arrosage</div>
         <div class="detail-info-card">
           <div class="detail-info-row">
-            <span class="detail-info-label">💧 Arrosage</span>
+            <span class="detail-info-label">💧 Fréquence</span>
             <span class="detail-info-value">Tous les ${p.waterDays||'?'} jours</span>
           </div>
+          ${waterQtyHtml}
           <div class="detail-info-row">
             <span class="detail-info-label">📅 Dernier arrosage</span>
             <span class="detail-info-value">${p.lastWatered ? formatDate(new Date(p.lastWatered)) : '—'}</span>
@@ -1382,6 +1477,15 @@ function openDetail(id) {
             <span class="detail-info-label">⏭️ Prochain arrosage</span>
             <span class="detail-info-value ${cls}">${label}</span>
           </div>
+        </div>
+        ${p.waterNotes ? `<div class="detail-notes" style="margin-top:8px;font-size:12px;color:var(--text-mid);background:white;border-radius:var(--radius-sm);padding:12px;line-height:1.5">
+          <span style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-light);display:block;margin-bottom:4px">Précisions</span>
+          ${escHtml(p.waterNotes)}
+        </div>` : ''}
+      </div>
+      <div class="detail-section">
+        <div class="detail-section-title">Informations</div>
+        <div class="detail-info-card">
           <div class="detail-info-row">
             <span class="detail-info-label">☀️ Lumière</span>
             <span class="detail-info-value">${p.light||'—'}</span>
@@ -1515,7 +1619,11 @@ function openAddTaskForDate(dateStr) {
   sel.innerHTML = '<option value="">— Toutes / Aucune —</option>' +
     state.plants.map(p => `<option value="${p.id}">${p.emoji} ${p.name}</option>`).join('');
   document.getElementById('taskType').value = 'water';
-  document.getElementById('taskRepeat').value = '0';
+  document.getElementById('taskRepeatEnabled').checked = false;
+  document.getElementById('taskRepeatGroup').style.display = 'none';
+  document.getElementById('taskRepeatSlider').value = 7;
+  document.getElementById('taskRepeatValue').textContent = '7';
+  document.getElementById('taskRepeatDescription').textContent = '';
   document.getElementById('taskCustomGroup').style.display = 'none';
   document.getElementById('taskType').onchange = () => {
     document.getElementById('taskCustomGroup').style.display =
@@ -1528,13 +1636,15 @@ async function saveTask() {
   const type = document.getElementById('taskType').value;
   const label = type === 'custom' ?
     document.getElementById('taskCustomLabel').value.trim() : TASK_LABELS[type];
+  const repeatEnabled = document.getElementById('taskRepeatEnabled').checked;
+  const repeat = repeatEnabled ? parseInt(document.getElementById('taskRepeatSlider').value) : 0;
   const task = {
     id: uid(),
     plantId: document.getElementById('taskPlant').value || null,
     type,
     label,
     date: document.getElementById('taskDate').value || todayStr(),
-    repeat: parseInt(document.getElementById('taskRepeat').value) || 0
+    repeat
   };
   state.tasks.push(task);
   await persistAll();
