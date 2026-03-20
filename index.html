@@ -926,6 +926,10 @@
     </div>
     <div class="modal-body">
       <div class="form-group">
+        <label class="form-label">Nom de la tâche *</label>
+        <input type="text" class="form-input" id="taskName" placeholder="ex: Arrosage du lundi, Taille de printemps…">
+      </div>
+      <div class="form-group">
         <label class="form-label">Plante concernée</label>
         <select class="form-select" id="taskPlant">
           <option value="">— Toutes / Aucune —</option>
@@ -942,8 +946,8 @@
         </select>
       </div>
       <div class="form-group" id="taskCustomGroup" style="display:none">
-        <label class="form-label">Description</label>
-        <input type="text" class="form-input" id="taskCustomLabel" placeholder="Décrivez la tâche…">
+        <label class="form-label">Description supplémentaire</label>
+        <input type="text" class="form-input" id="taskCustomLabel" placeholder="Détails optionnels…">
       </div>
       <div class="form-group">
         <label class="form-label">Date</label>
@@ -1232,11 +1236,13 @@ function renderToday() {
     const plant = t.plantId ? state.plants.find(p => p.id === t.plantId) : null;
     const checkKey = t.id + '_' + ds;
     const isDone = !!state.todoChecked[checkKey];
+    const displayName = t.name || t.label || TASK_LABELS[t.type] || 'Tâche';
+    const subLabel = plant ? plant.name : (t.label && t.label !== displayName ? t.label : 'Général');
     return `<div class="todo-item ${isDone?'done':''}" id="todo_${checkKey}">
       <div class="todo-emoji">${plant ? plant.emoji : TASK_ICONS[t.type]}</div>
       <div class="todo-info">
-        <div class="todo-label">${TASK_LABELS[t.type] || t.label}</div>
-        <div class="todo-plant">${plant ? plant.name : 'Général'}</div>
+        <div class="todo-label">${displayName}</div>
+        <div class="todo-plant">${subLabel} · <span class="tag ${TASK_TAGS[t.type]}" style="font-size:10px;padding:1px 7px">${TASK_ICONS[t.type]} ${TASK_LABELS[t.type]||t.type}</span></div>
       </div>
       <div class="todo-check ${isDone?'checked':''}" onclick="toggleTodo('${checkKey}', '${t.plantId||''}', '${t.type}', '${t.id}')"></div>
     </div>`;
@@ -1593,12 +1599,14 @@ function renderDayTasks() {
 
   el.innerHTML = tasks.map(t => {
     const plant = t.plantId ? state.plants.find(p=>p.id===t.plantId) : null;
+    const displayName = t.name || t.label || TASK_LABELS[t.type] || 'Tâche';
     return `<div class="planning-task">
       <div class="planning-task-icon">${plant ? plant.emoji : TASK_ICONS[t.type]}</div>
       <div class="planning-task-info">
-        <div class="planning-task-name">${plant ? plant.name : 'Général'}</div>
+        <div class="planning-task-name">${displayName}</div>
         <div class="planning-task-type">
-          <span class="tag ${TASK_TAGS[t.type]}">${TASK_ICONS[t.type]} ${TASK_LABELS[t.type]||t.label}</span>
+          ${plant ? `<span style="font-size:11px;color:var(--text-mid)">${plant.name}</span> · ` : ''}
+          <span class="tag ${TASK_TAGS[t.type]}">${TASK_ICONS[t.type]} ${TASK_LABELS[t.type]||t.type}</span>
           ${t.repeat > 0 ? `<span style="font-size:10px;color:var(--text-light);margin-left:6px">🔄 tous les ${t.repeat}j</span>` : ''}
           ${t.isAuto ? '<span style="font-size:10px;color:var(--text-light);margin-left:6px">automatique</span>' : ''}
         </div>
@@ -1618,6 +1626,7 @@ function openAddTaskForDate(dateStr) {
   const sel = document.getElementById('taskPlant');
   sel.innerHTML = '<option value="">— Toutes / Aucune —</option>' +
     state.plants.map(p => `<option value="${p.id}">${p.emoji} ${p.name}</option>`).join('');
+  document.getElementById('taskName').value = '';
   document.getElementById('taskType').value = 'water';
   document.getElementById('taskRepeatEnabled').checked = false;
   document.getElementById('taskRepeatGroup').style.display = 'none';
@@ -1633,16 +1642,18 @@ function openAddTaskForDate(dateStr) {
 }
 
 async function saveTask() {
+  const name = document.getElementById('taskName').value.trim();
+  if (!name) { showToast('⚠️ Donnez un nom à la tâche'); return; }
   const type = document.getElementById('taskType').value;
-  const label = type === 'custom' ?
-    document.getElementById('taskCustomLabel').value.trim() : TASK_LABELS[type];
+  const customDesc = document.getElementById('taskCustomLabel').value.trim();
   const repeatEnabled = document.getElementById('taskRepeatEnabled').checked;
   const repeat = repeatEnabled ? parseInt(document.getElementById('taskRepeatSlider').value) : 0;
   const task = {
     id: uid(),
     plantId: document.getElementById('taskPlant').value || null,
     type,
-    label,
+    name,
+    label: customDesc || TASK_LABELS[type],
     date: document.getElementById('taskDate').value || todayStr(),
     repeat
   };
