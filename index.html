@@ -642,6 +642,56 @@
   }
   .ai-chip:active { background: var(--green-50); border-color: var(--green-400); color: var(--green-700); }
 
+  /* ── ANNEXE TASKS ── */
+  .annexe-filter {
+    flex-shrink: 0; background: white;
+    border: 1.5px solid var(--border); border-radius: 20px;
+    padding: 6px 14px; font-size: 12px; font-weight: 400;
+    color: var(--text-mid); cursor: pointer;
+    font-family: 'DM Sans', sans-serif; transition: all 0.15s;
+  }
+  .annexe-filter.active {
+    background: var(--green-700); border-color: var(--green-700);
+    color: white; font-weight: 500;
+  }
+  .annexe-item {
+    background: white; border-radius: var(--radius-sm);
+    padding: 14px 14px 14px 16px; margin-bottom: 8px;
+    display: flex; align-items: center; gap: 12px;
+    box-shadow: 0 1px 6px rgba(0,0,0,0.05);
+    transition: all 0.2s;
+  }
+  .annexe-item.done { opacity: 0.45; }
+  .annexe-item.done .annexe-label { text-decoration: line-through; color: var(--text-light); }
+  .annexe-check {
+    width: 22px; height: 22px; border-radius: 6px;
+    border: 2px solid var(--green-400);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; flex-shrink: 0; transition: all 0.2s;
+    background: transparent;
+  }
+  .annexe-check.checked { background: var(--green-500); border-color: var(--green-500); }
+  .annexe-check.checked::after { content: '✓'; color: white; font-size: 12px; font-weight: 700; }
+  .annexe-label {
+    flex: 1; font-size: 14px; color: var(--text-dark); line-height: 1.4;
+  }
+  .annexe-cat {
+    font-size: 10px; font-weight: 500; letter-spacing: 0.06em;
+    text-transform: uppercase; padding: 2px 8px; border-radius: 10px;
+    flex-shrink: 0;
+  }
+  .annexe-del {
+    background: none; border: none; color: var(--text-light);
+    font-size: 15px; cursor: pointer; padding: 4px; flex-shrink: 0;
+    opacity: 0.5; transition: opacity 0.15s;
+  }
+  .annexe-del:active { opacity: 1; }
+  .annexe-section-title {
+    font-size: 11px; font-weight: 500; color: var(--text-light);
+    letter-spacing: 0.08em; text-transform: uppercase;
+    margin: 16px 0 8px; display: flex; align-items: center; gap: 6px;
+  }
+
   /* ── WATER QUANTITY ── */
   .water-qty-options {
     display: flex; gap: 8px;
@@ -687,6 +737,9 @@
     </button>
     <button class="nav-tab" onclick="switchTab('planning')" id="tab-planning">
       <span class="tab-icon">📅</span>Planning
+    </button>
+    <button class="nav-tab" onclick="switchTab('annexe')" id="tab-annexe">
+      <span class="tab-icon">📋</span>Annexes
     </button>
     <button class="nav-tab" onclick="switchTab('ai')" id="tab-ai">
       <span class="tab-icon">✨</span>IA
@@ -750,6 +803,38 @@
           placeholder="Posez une question..." maxlength="500">
         <button class="chat-send" onclick="sendChat()">↑</button>
       </div>
+    </div>
+
+    <!-- ANNEXE VIEW -->
+    <div class="view" id="view-annexe">
+      <div class="section-header">
+        <span class="section-title">Tâches annexes</span>
+        <span class="section-count" id="annexeCount"></span>
+      </div>
+
+      <!-- Filter tabs -->
+      <div style="padding:0 16px 12px;display:flex;gap:8px;overflow-x:auto;scrollbar-width:none">
+        <button class="annexe-filter active" data-filter="all" onclick="setAnnexeFilter('all')">Toutes</button>
+        <button class="annexe-filter" data-filter="todo" onclick="setAnnexeFilter('todo')">À faire</button>
+        <button class="annexe-filter" data-filter="done" onclick="setAnnexeFilter('done')">Terminées</button>
+      </div>
+
+      <!-- Add inline -->
+      <div style="padding:0 16px 16px">
+        <div style="background:white;border-radius:var(--radius);padding:14px;box-shadow:var(--shadow);display:flex;gap:10px;align-items:center">
+          <input type="text" id="annexeInput" class="form-input"
+            placeholder="Ajouter une tâche… (ex: acheter un cache-pot)"
+            style="flex:1;border:none;padding:0;font-size:14px;outline:none;background:transparent"
+            onkeydown="if(event.key==='Enter') addAnnexeTask()">
+          <button onclick="addAnnexeTask()" style="background:var(--green-700);border:none;color:white;
+            width:32px;height:32px;border-radius:50%;font-size:18px;cursor:pointer;
+            display:flex;align-items:center;justify-content:center;flex-shrink:0">＋</button>
+        </div>
+      </div>
+
+      <!-- Category sections -->
+      <div id="annexeList" style="padding:0 16px"></div>
+      <div style="height:80px"></div>
     </div>
 
     <!-- SETTINGS VIEW -->
@@ -992,8 +1077,9 @@
 // ═══════════════════════════════════════════════
 let state = {
   plants: [],
-  tasks: [],   // {id, plantId, type, label, date, repeat, done:[]}
-  todoChecked: {}, // {taskId_dateStr: true}
+  tasks: [],
+  annexeTasks: [],
+  todoChecked: {},
   geminiKey: '',
   supabaseUrl: '',
   supabaseKey: '',
@@ -1084,6 +1170,7 @@ async function loadFromSupabase() {
     if (map.plants) state.plants = JSON.parse(map.plants);
     if (map.tasks)  state.tasks  = JSON.parse(map.tasks);
     if (map.todoChecked) state.todoChecked = JSON.parse(map.todoChecked);
+    if (map.annexeTasks) state.annexeTasks = JSON.parse(map.annexeTasks);
     saveLocal();
   } catch(e) { console.warn('Supabase load error', e); }
 }
@@ -1093,7 +1180,8 @@ async function saveToSupabase() {
   const rows = [
     {key:'plants',  value: JSON.stringify(state.plants)},
     {key:'tasks',   value: JSON.stringify(state.tasks)},
-    {key:'todoChecked', value: JSON.stringify(state.todoChecked)}
+    {key:'todoChecked', value: JSON.stringify(state.todoChecked)},
+    {key:'annexeTasks', value: JSON.stringify(state.annexeTasks)}
   ];
   try {
     await supabaseReq('botanica_data?on_conflict=key', 'POST', rows);
@@ -1111,6 +1199,7 @@ function renderAll() {
   renderToday();
   renderPlants();
   renderPlanning();
+  renderAnnexe();
   renderAISuggestions();
 }
 
@@ -1137,6 +1226,7 @@ function switchTab(name) {
   if (name === 'today')    renderToday();
   if (name === 'plants')   renderPlants();
   if (name === 'planning') renderPlanning();
+  if (name === 'annexe')   renderAnnexe();
 }
 
 function openFab() {
@@ -1672,6 +1762,124 @@ async function deleteTask(id) {
 }
 
 // ════════════════════════════════════════════════
+//  ANNEXE TASKS
+// ════════════════════════════════════════════════
+let annexeFilter = 'all';
+
+const ANNEXE_CATEGORIES = [
+  { key: 'achat',    label: 'Achats',          icon: '🛒', color: '#fef3c7', textColor: '#d97706' },
+  { key: 'amenagt',  label: 'Aménagement',     icon: '🏡', color: '#ede9fe', textColor: '#7c3aed' },
+  { key: 'entretien',label: 'Entretien',       icon: '🔧', color: '#fee2e2', textColor: '#dc2626' },
+  { key: 'autre',    label: 'Autre',           icon: '📝', color: '#e0f2e1', textColor: '#2d6130' },
+];
+
+function getCategoryForTask(label) {
+  const l = label.toLowerCase();
+  if (l.includes('achet') || l.includes('command') || l.includes('cache') ||
+      l.includes('pot') || l.includes('terre') || l.includes('engrais') ||
+      l.includes('outil') || l.includes('arrosoir') || l.includes('bac'))
+    return 'achat';
+  if (l.includes('install') || l.includes('système') || l.includes('récup') ||
+      l.includes('aménag') || l.includes('serre') || l.includes('bacs') ||
+      l.includes('construi') || l.includes('poser'))
+    return 'amenagt';
+  if (l.includes('nettoyer') || l.includes('nettoie') || l.includes('traiter') ||
+      l.includes('réparer') || l.includes('entretien') || l.includes('taille'))
+    return 'entretien';
+  return 'autre';
+}
+
+function setAnnexeFilter(f) {
+  annexeFilter = f;
+  document.querySelectorAll('.annexe-filter').forEach(el => {
+    el.classList.toggle('active', el.dataset.filter === f);
+  });
+  renderAnnexe();
+}
+
+async function addAnnexeTask() {
+  const input = document.getElementById('annexeInput');
+  const label = input.value.trim();
+  if (!label) return;
+  const task = {
+    id: uid(),
+    label,
+    done: false,
+    category: getCategoryForTask(label),
+    createdAt: new Date().toISOString()
+  };
+  state.annexeTasks.unshift(task);
+  input.value = '';
+  await persistAll();
+  renderAnnexe();
+  showToast('✅ Tâche ajoutée !');
+}
+
+async function toggleAnnexe(id) {
+  const t = state.annexeTasks.find(x => x.id === id);
+  if (!t) return;
+  t.done = !t.done;
+  await persistAll();
+  renderAnnexe();
+}
+
+async function deleteAnnexe(id) {
+  state.annexeTasks = state.annexeTasks.filter(x => x.id !== id);
+  await persistAll();
+  renderAnnexe();
+  showToast('🗑️ Tâche supprimée');
+}
+
+function renderAnnexe() {
+  let tasks = state.annexeTasks;
+  if (annexeFilter === 'todo') tasks = tasks.filter(t => !t.done);
+  if (annexeFilter === 'done') tasks = tasks.filter(t => t.done);
+
+  const total = state.annexeTasks.length;
+  const doneCnt = state.annexeTasks.filter(t => t.done).length;
+  document.getElementById('annexeCount').textContent =
+    total > 0 ? `${doneCnt}/${total} terminées` : '';
+
+  const container = document.getElementById('annexeList');
+
+  if (tasks.length === 0) {
+    container.innerHTML = `<div class="empty-state">
+      <div class="empty-icon">📋</div>
+      <h3>${annexeFilter === 'done' ? 'Aucune tâche terminée' : 'Aucune tâche annexe'}</h3>
+      <p>${annexeFilter === 'done' ? '' : 'Notez vos achats, aménagements,<br>et autres projets ici.'}</p>
+    </div>`;
+    return;
+  }
+
+  // Group by category
+  const grouped = {};
+  tasks.forEach(t => {
+    const cat = t.category || 'autre';
+    if (!grouped[cat]) grouped[cat] = [];
+    grouped[cat].push(t);
+  });
+
+  let html = '';
+  ANNEXE_CATEGORIES.forEach(cat => {
+    const items = grouped[cat.key];
+    if (!items || !items.length) return;
+    html += `<div class="annexe-section-title">
+      <span>${cat.icon}</span>${cat.label}
+      <span style="background:${cat.color};color:${cat.textColor};padding:1px 8px;border-radius:10px;font-size:10px">${items.length}</span>
+    </div>`;
+    items.forEach(t => {
+      html += `<div class="annexe-item ${t.done ? 'done' : ''}">
+        <div class="annexe-check ${t.done ? 'checked' : ''}" onclick="toggleAnnexe('${t.id}')"></div>
+        <span class="annexe-label">${escHtml(t.label)}</span>
+        <button class="annexe-del" onclick="deleteAnnexe('${t.id}')">🗑️</button>
+      </div>`;
+    });
+  });
+
+  container.innerHTML = html;
+}
+
+// ════════════════════════════════════════════════
 //  AI CHAT (GEMINI)
 // ════════════════════════════════════════════════
 const AI_SUGGESTIONS = [
@@ -1861,7 +2069,7 @@ function confirmImport() {
 
 async function confirmClear() {
   if (!confirm('Effacer TOUTES les données ? Cette action est irréversible.')) return;
-  state.plants = []; state.tasks = []; state.todoChecked = {};
+  state.plants = []; state.tasks = []; state.todoChecked = {}; state.annexeTasks = [];
   await persistAll();
   renderAll();
   showToast('🗑️ Données effacées');
