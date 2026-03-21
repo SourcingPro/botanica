@@ -1075,6 +1075,16 @@
 // ═══════════════════════════════════════════════
 //  STATE & STORAGE
 // ═══════════════════════════════════════════════
+// ═══════════════════════════════════════════════
+//  ⚙️ CONFIGURATION — Remplacez ces valeurs
+// ═══════════════════════════════════════════════
+const CONFIG = {
+  supabaseUrl: 'https://oripqgdmgnwmscijxvrl.supabase.co',
+  supabaseKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9yaXBxZ2RtZ253bXNjaWp4dnJsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQwMTIxMjUsImV4cCI6MjA4OTU4ODEyNX0.h_jqJ_Atn1zLw_cB6hLK96ZHtHdShtIek-Cfd5h8qPg',
+  geminiKey:   'AIzaSyA1pvhPiUrGrHjEj0gEyJ2p2IK7R9iK03c'
+};
+// ═══════════════════════════════════════════════
+
 let state = {
   plants: [],
   tasks: [],
@@ -1118,6 +1128,10 @@ function loadLocal() {
       state = {...state, ...parsed};
     }
   } catch(e) {}
+  // Les clés dans CONFIG écrasent toujours ce qui est en localStorage
+  if (CONFIG.supabaseUrl !== 'VOTRE_URL_SUPABASE') state.supabaseUrl = CONFIG.supabaseUrl;
+  if (CONFIG.supabaseKey !== 'VOTRE_ANON_KEY')     state.supabaseKey = CONFIG.supabaseKey;
+  if (CONFIG.geminiKey   !== 'VOTRE_CLE_GEMINI')   state.geminiKey   = CONFIG.geminiKey;
 }
 
 function saveLocal() {
