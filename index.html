@@ -1268,23 +1268,25 @@ function getTasksForDate(dateStr) {
   state.tasks.forEach(task => {
     if (taskOccursOn(task, dateStr)) tasks.push(task);
   });
-  // Add auto-watering tasks from plants
+  // Add auto-watering tasks from plants (stable ID based on plant+date only)
   state.plants.forEach(plant => {
     if (!plant.waterDays || plant.waterDays < 1) return;
     const last = plant.lastWatered ? new Date(plant.lastWatered) : null;
     if (!last) return;
-    // generate dates from lastWatered going forward
     const target = new Date(dateStr);
+    // Normalize to midnight
+    last.setHours(0,0,0,0);
+    target.setHours(0,0,0,0);
     const diff = Math.round((target - last) / 86400000);
     if (diff > 0 && diff % plant.waterDays === 0) {
-      // Check there's no manual water task for this plant on this date
       const hasManual = state.tasks.some(t =>
         t.type === 'water' && t.plantId === plant.id && taskOccursOn(t, dateStr));
       if (!hasManual) {
         tasks.push({
-          id: 'auto_' + plant.id + '_' + dateStr,
+          id: 'auto_' + plant.id,   // stable: no date in ID
           plantId: plant.id,
           type: 'water',
+          name: 'Arrosage',
           label: 'Arrosage',
           date: dateStr,
           repeat: plant.waterDays,
@@ -1961,53 +1963,65 @@ async function sendChatMsg(msg) {
     return;
   }
 
-  // Build context from plants
   const plantsCtx = state.plants.length
-    ? 'Mes plantes : ' + state.plants.map(p =>
-        `${p.name} (${p.species||'?'}), arrosage tous les ${p.waterDays||'?'}j, lumière: ${p.light||'?'}`
+    ? '\n\nMes plantes actuelles : ' + state.plants.map(p =>
+        `${p.name} (${p.species||'espèce inconnue'}), arrosage tous les ${p.waterDays||'?'} jours, lumière: ${p.light||'non définie'}`
       ).join('; ')
     : '';
 
   appendChatMsg('user', msg);
+
+  // Build history for this request (max 10 échanges)
+  const recentHistory = state.chatHistory.slice(-10);
   state.chatHistory.push({role:'user', parts:[{text: msg}]});
 
   const typingEl = appendTyping();
 
   try {
-    const systemPrompt = `Tu es un expert en plantes d'intérieur et jardinage. Réponds en français, de manière concise et pratique. ${plantsCtx}`;
-
-    // Build contents — Gemini requires alternating user/model roles
-    // System prompt goes as first user message
-    const contents = [];
-    if (state.chatHistory.length === 0) {
-      contents.push({role:'user', parts:[{text: systemPrompt}]});
-      contents.push({role:'model', parts:[{text: 'Bien sûr, je suis là pour vous aider avec vos plantes !'}]});
-    }
-    contents.push(...state.chatHistory);
+    // Gemini 1.5 Flash avec systemInstruction séparé
+    const body = {
+      systemInstruction: {
+        parts: [{
+          text: `Tu es Botanica, un assistant expert en plantes d'intérieur et jardinage. Réponds toujours en français, de manière bienveillante, concise et pratique. Ne dépasse pas 200 mots par réponse.${plantsCtx}`
+        }]
+      },
+      contents: [
+        ...recentHistory,
+        {role: 'user', parts: [{text: msg}]}
+      ],
+      generationConfig: {
+        maxOutputTokens: 500,
+        temperature: 0.7
+      }
+    };
 
     const res = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${state.geminiKey}`,
       {
         method: 'POST',
-        headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({
-          contents,
-          systemInstruction: { parts: [{text: systemPrompt}] },
-          generationConfig: {maxOutputTokens: 600, temperature: 0.7}
-        })
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(body)
       }
     );
+
     const data = await res.json();
-    if (data.error) throw new Error(data.error.message);
-    const reply = data.candidates?.[0]?.content?.parts?.[0]?.text || 'Désolé, je n\'ai pas pu répondre.';
+
+    if (!res.ok) {
+      throw new Error(data.error?.message || `HTTP ${res.status}`);
+    }
+
+    const reply = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!reply) throw new Error('Réponse vide de Gemini');
+
     typingEl.remove();
     appendChatMsg('ai', reply);
-    state.chatHistory.push({role:'model', parts:[{text:reply}]});
+    state.chatHistory.push({role: 'model', parts: [{text: reply}]});
     if (state.chatHistory.length > 20) state.chatHistory = state.chatHistory.slice(-20);
+
   } catch(e) {
     typingEl.remove();
     console.error('Gemini error:', e);
-    appendChatMsg('ai', `❌ Erreur : ${e.message || 'Connexion à Gemini échouée. Vérifiez votre clé API.'}`);
+    appendChatMsg('ai', `❌ ${e.message}`);
   }
 }
 
