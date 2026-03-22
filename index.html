@@ -1117,7 +1117,6 @@ window.addEventListener('DOMContentLoaded', async () => {
   loadLocal();
   renderHeader();
   loadSettingsUI();
-  // D'abord on charge depuis Supabase, PUIS on affiche
   await trySupabaseInit();
   renderAll();
   setupChatInput();
