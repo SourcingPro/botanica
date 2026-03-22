@@ -287,8 +287,8 @@
     box-shadow: 0 2px 8px rgba(13,31,15,0.06);
     transition: all 0.2s;
   }
-  .todo-item.done { opacity: 0.5; }
-  .todo-item.done .todo-label { text-decoration: line-through; }
+  .todo-item.done { opacity: 0.55; background: #f9fafb; }
+  .todo-item.done .todo-label { text-decoration: line-through; color: var(--text-light); }
   .todo-check {
     width: 24px; height: 24px; border-radius: 50%;
     border: 2px solid var(--green-400);
@@ -1265,16 +1265,42 @@ function todayStr() {
 
 function getTasksForDate(dateStr) {
   const tasks = [];
+  const isToday = dateStr === todayStr();
+
   state.tasks.forEach(task => {
     if (taskOccursOn(task, dateStr)) tasks.push(task);
   });
-  // Add auto-watering tasks from plants (stable ID based on plant+date only)
+
+  // Auto-watering tasks from plants
   state.plants.forEach(plant => {
     if (!plant.waterDays || plant.waterDays < 1) return;
+
+    const stableId = 'auto_' + plant.id;
+    const checkKey = stableId + '_' + dateStr;
+    const alreadyCheckedToday = isToday && !!state.todoChecked[checkKey];
+
+    // Always show if already checked today (even if lastWatered changed)
+    if (alreadyCheckedToday) {
+      const hasManual = state.tasks.some(t =>
+        t.type === 'water' && t.plantId === plant.id && taskOccursOn(t, dateStr));
+      if (!hasManual) {
+        tasks.push({
+          id: stableId,
+          plantId: plant.id,
+          type: 'water',
+          name: 'Arrosage',
+          label: 'Arrosage',
+          date: dateStr,
+          repeat: plant.waterDays,
+          isAuto: true
+        });
+        return;
+      }
+    }
+
     const last = plant.lastWatered ? new Date(plant.lastWatered) : null;
     if (!last) return;
     const target = new Date(dateStr);
-    // Normalize to midnight
     last.setHours(0,0,0,0);
     target.setHours(0,0,0,0);
     const diff = Math.round((target - last) / 86400000);
@@ -1283,7 +1309,7 @@ function getTasksForDate(dateStr) {
         t.type === 'water' && t.plantId === plant.id && taskOccursOn(t, dateStr));
       if (!hasManual) {
         tasks.push({
-          id: 'auto_' + plant.id,   // stable: no date in ID
+          id: stableId,
           plantId: plant.id,
           type: 'water',
           name: 'Arrosage',
@@ -1295,6 +1321,7 @@ function getTasksForDate(dateStr) {
       }
     }
   });
+
   return tasks;
 }
 
@@ -1376,17 +1403,32 @@ function renderToday() {
 }
 
 async function toggleTodo(checkKey, plantId, type, taskId) {
-  state.todoChecked[checkKey] = !state.todoChecked[checkKey];
-  // If watering completed, update lastWatered
-  if (state.todoChecked[checkKey] && type === 'water' && plantId) {
+  const nowDone = !state.todoChecked[checkKey];
+  state.todoChecked[checkKey] = nowDone;
+
+  // Si arrosage coché : mettre à jour lastWatered
+  if (nowDone && type === 'water' && plantId) {
     const plant = state.plants.find(p => p.id === plantId);
     if (plant) {
       plant.lastWatered = todayStr();
       showToast(`💧 ${plant.name} arrosé·e !`);
     }
   }
+
   await persistAll();
-  renderToday();
+
+  // Mise à jour visuelle sans reconstruire toute la liste
+  // pour éviter que la tâche "disparaisse" à cause du recalcul
+  const itemEl = document.getElementById('todo_' + checkKey);
+  if (itemEl) {
+    itemEl.classList.toggle('done', nowDone);
+    const checkEl = itemEl.querySelector('.todo-check');
+    if (checkEl) checkEl.classList.toggle('checked', nowDone);
+    // Déplacer la tâche dans la bonne section sans tout reconstruire
+    renderToday();
+  } else {
+    renderToday();
+  }
 }
 
 // ════════════════════════════════════════════════
@@ -1996,7 +2038,7 @@ async function sendChatMsg(msg) {
     };
 
     const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${state.geminiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${state.geminiKey}`,
       {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
