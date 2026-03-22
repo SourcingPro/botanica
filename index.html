@@ -2058,6 +2058,8 @@ async function forceSync() {
     showToast('❌ Connexion Supabase échouée');
   }
 }
+
+async function createSupabaseTable() {
   // Try to create the table via RPC if it doesn't exist (best effort)
   try {
     await supabaseReq('botanica_data?select=key&limit=1');
