@@ -1188,10 +1188,14 @@ async function loadFromSupabase() {
     if (!rows || !rows.length) return;
     const map = {};
     rows.forEach(r => { map[r.key] = r.value; });
-    if (map.plants) state.plants = JSON.parse(map.plants);
-    if (map.tasks)  state.tasks  = JSON.parse(map.tasks);
-    if (map.todoChecked) state.todoChecked = JSON.parse(map.todoChecked);
+    if (map.plants)     state.plants     = JSON.parse(map.plants);
+    if (map.tasks)      state.tasks      = JSON.parse(map.tasks);
     if (map.annexeTasks) state.annexeTasks = JSON.parse(map.annexeTasks);
+    // Fusionner todoChecked : garder les coches locales + celles du cloud
+    if (map.todoChecked) {
+      const cloudChecked = JSON.parse(map.todoChecked);
+      state.todoChecked = Object.assign({}, cloudChecked, state.todoChecked);
+    }
     saveLocal();
   } catch(e) { console.warn('Supabase load error', e); }
 }
@@ -1211,7 +1215,15 @@ async function saveToSupabase() {
 
 async function persistAll() {
   saveLocal();
-  await saveToSupabase();
+  // Toujours tenter Supabase si les clés sont présentes
+  if (state.supabaseUrl && state.supabaseKey) {
+    if (!supabaseConnected) {
+      supabaseConnected = await testSupabase();
+    }
+    if (supabaseConnected) {
+      await saveToSupabase();
+    }
+  }
 }
 
 // ── RENDER ALL ─────────────────────────────────
@@ -1260,7 +1272,18 @@ function openFab() {
 //  TODAY VIEW
 // ════════════════════════════════════════════════
 function todayStr() {
-  return new Date().toISOString().slice(0,10);
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const j = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${j}`;
+}
+
+function dateToStr(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const j = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${j}`;
 }
 
 function getTasksForDate(dateStr) {
@@ -1329,8 +1352,11 @@ function taskOccursOn(task, dateStr) {
   if (task.isAuto) return false;
   if (task.date === dateStr) return true;
   if (!task.repeat || task.repeat < 1) return false;
-  const start = new Date(task.date);
-  const target = new Date(dateStr);
+  // Parse as local midnight to avoid UTC offset issues
+  const [sy, sm, sd] = task.date.split('-').map(Number);
+  const [ty, tm, td] = dateStr.split('-').map(Number);
+  const start  = new Date(sy, sm - 1, sd);
+  const target = new Date(ty, tm - 1, td);
   if (target < start) return false;
   const diff = Math.round((target - start) / 86400000);
   return diff % task.repeat === 0;
@@ -1406,6 +1432,17 @@ async function toggleTodo(checkKey, plantId, type, taskId) {
   const nowDone = !state.todoChecked[checkKey];
   state.todoChecked[checkKey] = nowDone;
 
+  // Mise à jour visuelle immédiate AVANT la sauvegarde
+  const itemEl = document.getElementById('todo_' + checkKey);
+  if (itemEl) {
+    itemEl.classList.toggle('done', nowDone);
+    const checkEl = itemEl.querySelector('.todo-check');
+    if (checkEl) checkEl.classList.toggle('checked', nowDone);
+  }
+
+  // Sauvegarde locale immédiate
+  saveLocal();
+
   // Si arrosage coché : mettre à jour lastWatered
   if (nowDone && type === 'water' && plantId) {
     const plant = state.plants.find(p => p.id === plantId);
@@ -1413,22 +1450,13 @@ async function toggleTodo(checkKey, plantId, type, taskId) {
       plant.lastWatered = todayStr();
       showToast(`💧 ${plant.name} arrosé·e !`);
     }
+  } else if (nowDone) {
+    showToast('✅ Tâche marquée comme faite');
   }
 
+  // Sauvegarde Supabase + re-render complet
   await persistAll();
-
-  // Mise à jour visuelle sans reconstruire toute la liste
-  // pour éviter que la tâche "disparaisse" à cause du recalcul
-  const itemEl = document.getElementById('todo_' + checkKey);
-  if (itemEl) {
-    itemEl.classList.toggle('done', nowDone);
-    const checkEl = itemEl.querySelector('.todo-check');
-    if (checkEl) checkEl.classList.toggle('checked', nowDone);
-    // Déplacer la tâche dans la bonne section sans tout reconstruire
-    renderToday();
-  } else {
-    renderToday();
-  }
+  renderToday();
 }
 
 // ════════════════════════════════════════════════
@@ -1734,7 +1762,7 @@ function renderPlanning() {
 
   const strip = document.getElementById('weekStrip');
   strip.innerHTML = days.map(d => {
-    const ds = d.toISOString().slice(0,10);
+    const ds = dateToStr(d);
     const tasks = getTasksForDate(ds);
     const isToday = ds === todayStr();
     const isSel   = ds === selectedCalDay;
