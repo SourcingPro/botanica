@@ -1310,29 +1310,29 @@ function taskOccursOn(task, dateStr) {
 function renderToday() {
   const ds = todayStr();
   const tasks = getTasksForDate(ds);
-  const done = tasks.filter(t => state.todoChecked[t.id + '_' + ds]);
+  const doneTasks    = tasks.filter(t =>  state.todoChecked[t.id + '_' + ds]);
+  const pendingTasks = tasks.filter(t => !state.todoChecked[t.id + '_' + ds]);
   const total = tasks.length;
 
   // Hero
   const hero = document.getElementById('todayHero');
+  const allDone = total > 0 && doneTasks.length === total;
   hero.innerHTML = `
     <div class="today-hero">
       <div>
-        <div class="today-hero-count">${total - done.length}</div>
-        <div class="today-hero-label">tâche${(total-done.length)!==1?'s':''} restante${(total-done.length)!==1?'s':''}</div>
+        <div class="today-hero-count">${pendingTasks.length}</div>
+        <div class="today-hero-label">restante${pendingTasks.length!==1?'s':''}</div>
       </div>
       <div class="today-hero-divider"></div>
       <div class="today-hero-right">
-        <div class="big">${total === 0 ? 'Rien à faire 🎉' : done.length === total ? 'Tout terminé ! 🌟' : `${done.length}/${total} complétées`}</div>
+        <div class="big">${total === 0 ? 'Rien à faire 🎉' : allDone ? 'Tout terminé ! 🌟' : `${doneTasks.length}/${total} complétées`}</div>
         <div class="small">${formatDate(new Date(), true)}</div>
       </div>
     </div>`;
 
-  // Progress
   document.getElementById('todayProgress').textContent =
-    total > 0 ? `${done.length}/${total}` : '';
+    total > 0 ? `${doneTasks.length}/${total}` : '';
 
-  // List
   const list = document.getElementById('todoList');
   if (tasks.length === 0) {
     list.innerHTML = `<div class="empty-state">
@@ -1343,12 +1343,12 @@ function renderToday() {
     return;
   }
 
-  list.innerHTML = tasks.map(t => {
+  const renderTask = (t) => {
     const plant = t.plantId ? state.plants.find(p => p.id === t.plantId) : null;
     const checkKey = t.id + '_' + ds;
     const isDone = !!state.todoChecked[checkKey];
     const displayName = t.name || t.label || TASK_LABELS[t.type] || 'Tâche';
-    const subLabel = plant ? plant.name : (t.label && t.label !== displayName ? t.label : 'Général');
+    const subLabel = plant ? plant.name : 'Général';
     return `<div class="todo-item ${isDone?'done':''}" id="todo_${checkKey}">
       <div class="todo-emoji">${plant ? plant.emoji : TASK_ICONS[t.type]}</div>
       <div class="todo-info">
@@ -1357,7 +1357,20 @@ function renderToday() {
       </div>
       <div class="todo-check ${isDone?'checked':''}" onclick="toggleTodo('${checkKey}', '${t.plantId||''}', '${t.type}', '${t.id}')"></div>
     </div>`;
-  }).join('');
+  };
+
+  let html = pendingTasks.map(renderTask).join('');
+
+  if (doneTasks.length > 0) {
+    html += `<div style="margin:16px 0 8px;font-size:11px;font-weight:500;color:var(--text-light);
+      letter-spacing:0.08em;text-transform:uppercase;display:flex;align-items:center;gap:8px">
+      <span>✅ Terminées (${doneTasks.length})</span>
+      <div style="flex:1;height:1px;background:var(--border)"></div>
+    </div>`;
+    html += doneTasks.map(renderTask).join('');
+  }
+
+  list.innerHTML = html;
 }
 
 async function toggleTodo(checkKey, plantId, type, taskId) {
@@ -1648,30 +1661,39 @@ async function waterNow(id) {
 // ════════════════════════════════════════════════
 function renderPlanning() {
   const today = new Date();
+  today.setHours(0,0,0,0);
+
+  // Compute the start of the displayed 2-week window
+  // Week starts on Monday of current week + offset
+  const dayOfWeek = today.getDay() === 0 ? 6 : today.getDay() - 1; // Mon=0
   const weekStart = new Date(today);
-  weekStart.setDate(today.getDate() + calWeekOffset * 7 - today.getDay() + 1);
+  weekStart.setDate(today.getDate() - dayOfWeek + calWeekOffset * 7);
 
-  // Month label
-  document.getElementById('calMonthLabel').textContent =
-    today.toLocaleDateString('fr-FR', {month:'long', year:'numeric'})
-      .replace(/^\w/, c => c.toUpperCase());
-
-  // Week strip
-  const strip = document.getElementById('weekStrip');
+  // Build 14 days from weekStart
   const days = [];
-  for (let i=0; i<14; i++) {
+  for (let i = 0; i < 14; i++) {
     const d = new Date(weekStart);
     d.setDate(weekStart.getDate() + i);
     days.push(d);
   }
 
+  // Month label — show range e.g. "Mars – Avril 2026"
+  const firstMonth = days[0].toLocaleDateString('fr-FR', {month:'long', year:'numeric'});
+  const lastMonth  = days[13].toLocaleDateString('fr-FR', {month:'long', year:'numeric'});
+  document.getElementById('calMonthLabel').textContent =
+    firstMonth === lastMonth
+      ? firstMonth.replace(/^\w/, c => c.toUpperCase())
+      : days[0].toLocaleDateString('fr-FR',{month:'short'}).replace(/^\w/,c=>c.toUpperCase()) +
+        ' – ' + lastMonth.replace(/^\w/, c => c.toUpperCase());
+
   if (!selectedCalDay) selectedCalDay = todayStr();
 
+  const strip = document.getElementById('weekStrip');
   strip.innerHTML = days.map(d => {
     const ds = d.toISOString().slice(0,10);
     const tasks = getTasksForDate(ds);
     const isToday = ds === todayStr();
-    const isSel = ds === selectedCalDay;
+    const isSel   = ds === selectedCalDay;
     return `<div class="week-day ${tasks.length?'has-tasks':''} ${isSel?'selected':''} ${isToday&&!isSel?'is-today':''}"
       onclick="selectDay('${ds}')">
       <span class="wd-name">${d.toLocaleDateString('fr-FR',{weekday:'short'}).slice(0,3)}</span>
@@ -1953,29 +1975,39 @@ async function sendChatMsg(msg) {
 
   try {
     const systemPrompt = `Tu es un expert en plantes d'intérieur et jardinage. Réponds en français, de manière concise et pratique. ${plantsCtx}`;
-    const contents = [
-      {role:'user', parts:[{text: systemPrompt}]},
-      ...state.chatHistory
-    ];
+
+    // Build contents — Gemini requires alternating user/model roles
+    // System prompt goes as first user message
+    const contents = [];
+    if (state.chatHistory.length === 0) {
+      contents.push({role:'user', parts:[{text: systemPrompt}]});
+      contents.push({role:'model', parts:[{text: 'Bien sûr, je suis là pour vous aider avec vos plantes !'}]});
+    }
+    contents.push(...state.chatHistory);
 
     const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${state.geminiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${state.geminiKey}`,
       {
         method: 'POST',
         headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({contents, generationConfig:{maxOutputTokens:600}})
+        body: JSON.stringify({
+          contents,
+          systemInstruction: { parts: [{text: systemPrompt}] },
+          generationConfig: {maxOutputTokens: 600, temperature: 0.7}
+        })
       }
     );
     const data = await res.json();
+    if (data.error) throw new Error(data.error.message);
     const reply = data.candidates?.[0]?.content?.parts?.[0]?.text || 'Désolé, je n\'ai pas pu répondre.';
     typingEl.remove();
     appendChatMsg('ai', reply);
     state.chatHistory.push({role:'model', parts:[{text:reply}]});
-    // Keep history short
     if (state.chatHistory.length > 20) state.chatHistory = state.chatHistory.slice(-20);
   } catch(e) {
     typingEl.remove();
-    appendChatMsg('ai', '❌ Erreur de connexion à Gemini. Vérifiez votre clé API.');
+    console.error('Gemini error:', e);
+    appendChatMsg('ai', `❌ Erreur : ${e.message || 'Connexion à Gemini échouée. Vérifiez votre clé API.'}`);
   }
 }
 
