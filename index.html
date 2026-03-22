@@ -872,6 +872,9 @@
             <button class="btn btn-primary" style="margin-top:10px;width:100%" onclick="saveSupabase()">
               Connecter Supabase
             </button>
+            <button class="btn btn-ghost" style="margin-top:8px;width:100%" onclick="forceSync()">
+              🔄 Forcer la synchronisation
+            </button>
             <div id="supabaseStatus" style="margin-top:8px;font-size:12px;color:var(--text-light)"></div>
           </div>
         </div>
@@ -1113,8 +1116,8 @@ const TASK_TAGS = {water:'tag-water',fert:'tag-fert',repot:'tag-repot',trim:'tag
 window.addEventListener('DOMContentLoaded', async () => {
   loadLocal();
   renderHeader();
-  renderTabs();
   loadSettingsUI();
+  // D'abord on charge depuis Supabase, PUIS on affiche
   await trySupabaseInit();
   renderAll();
   setupChatInput();
@@ -1142,9 +1145,14 @@ function saveLocal() {
 
 async function trySupabaseInit() {
   if (state.supabaseUrl && state.supabaseKey) {
+    const status = document.getElementById('supabaseStatus');
+    if (status) status.textContent = '⏳ Connexion à Supabase…';
     supabaseConnected = await testSupabase();
     if (supabaseConnected) {
       await loadFromSupabase();
+      if (status) status.textContent = '✅ Supabase connecté — données synchronisées !';
+    } else {
+      if (status) status.textContent = '❌ Connexion Supabase échouée.';
     }
   }
 }
@@ -2033,7 +2041,24 @@ async function saveSupabase() {
   }
 }
 
-async function createSupabaseTable() {
+async function forceSync() {
+  const status = document.getElementById('supabaseStatus');
+  if (!state.supabaseUrl || !state.supabaseKey) {
+    showToast('⚠️ Configurez Supabase d\'abord');
+    return;
+  }
+  status.textContent = '⏳ Synchronisation en cours…';
+  const ok = await testSupabase();
+  if (ok) {
+    supabaseConnected = true;
+    await saveToSupabase();
+    status.textContent = '✅ Données envoyées vers Supabase !';
+    showToast('✅ Données synchronisées !');
+  } else {
+    status.textContent = '❌ Connexion échouée.';
+    showToast('❌ Connexion Supabase échouée');
+  }
+}
   // Try to create the table via RPC if it doesn't exist (best effort)
   try {
     await supabaseReq('botanica_data?select=key&limit=1');
