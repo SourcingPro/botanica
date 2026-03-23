@@ -1138,6 +1138,7 @@ function loadLocal() {
 
 function saveLocal() {
   try {
+    state._localTimestamp = Date.now();
     localStorage.setItem('botanica_state', JSON.stringify(state));
   } catch(e) {}
 }
@@ -1148,7 +1149,7 @@ async function trySupabaseInit() {
     if (status) status.textContent = '⏳ Connexion à Supabase…';
     supabaseConnected = await testSupabase();
     if (supabaseConnected) {
-      await loadFromSupabase();
+      await syncWithSupabase();
       if (status) status.textContent = '✅ Supabase connecté — données synchronisées !';
     } else {
       if (status) status.textContent = '❌ Connexion Supabase échouée.';
@@ -1182,31 +1183,47 @@ async function testSupabase() {
   }
 }
 
-async function loadFromSupabase() {
+// Synchronisation intelligente basée sur les timestamps
+async function syncWithSupabase() {
   try {
     const rows = await supabaseReq('botanica_data?select=key,value');
-    if (!rows || !rows.length) return;
     const map = {};
-    rows.forEach(r => { map[r.key] = r.value; });
-    if (map.plants)     state.plants     = JSON.parse(map.plants);
-    if (map.tasks)      state.tasks      = JSON.parse(map.tasks);
-    if (map.annexeTasks) state.annexeTasks = JSON.parse(map.annexeTasks);
-    // Fusionner todoChecked : garder les coches locales + celles du cloud
-    if (map.todoChecked) {
-      const cloudChecked = JSON.parse(map.todoChecked);
+    if (rows && rows.length) rows.forEach(r => { map[r.key] = r.value; });
+
+    const cloudTs = map._timestamp ? parseInt(map._timestamp) : 0;
+    const localTs = state._localTimestamp || 0;
+
+    if (cloudTs > localTs) {
+      // Cloud plus récent → charger depuis le cloud
+      if (map.plants)      state.plants      = JSON.parse(map.plants);
+      if (map.tasks)       state.tasks       = JSON.parse(map.tasks);
+      if (map.annexeTasks) state.annexeTasks = JSON.parse(map.annexeTasks);
+      // todoChecked : toujours fusionner (union) pour ne rien perdre
+      const cloudChecked = map.todoChecked ? JSON.parse(map.todoChecked) : {};
       state.todoChecked = Object.assign({}, cloudChecked, state.todoChecked);
+    } else {
+      // Local plus récent ou égal → on garde le local, on fusionne les coches
+      const cloudChecked = map.todoChecked ? JSON.parse(map.todoChecked) : {};
+      state.todoChecked = Object.assign({}, cloudChecked, state.todoChecked);
+      // Envoyer le local vers le cloud
+      await saveToSupabase();
     }
     saveLocal();
-  } catch(e) { console.warn('Supabase load error', e); }
+  } catch(e) { console.warn('Supabase sync error', e); }
+}
+
+async function loadFromSupabase() {
+  await syncWithSupabase();
 }
 
 async function saveToSupabase() {
   if (!supabaseConnected) return;
   const rows = [
-    {key:'plants',  value: JSON.stringify(state.plants)},
-    {key:'tasks',   value: JSON.stringify(state.tasks)},
+    {key:'plants',      value: JSON.stringify(state.plants)},
+    {key:'tasks',       value: JSON.stringify(state.tasks)},
     {key:'todoChecked', value: JSON.stringify(state.todoChecked)},
-    {key:'annexeTasks', value: JSON.stringify(state.annexeTasks)}
+    {key:'annexeTasks', value: JSON.stringify(state.annexeTasks)},
+    {key:'_timestamp',  value: String(Date.now())}
   ];
   try {
     await supabaseReq('botanica_data?on_conflict=key', 'POST', rows);
@@ -1214,8 +1231,9 @@ async function saveToSupabase() {
 }
 
 async function persistAll() {
+  // 1. Sauvegarder localement immédiatement
   saveLocal();
-  // Toujours tenter Supabase si les clés sont présentes
+  // 2. Tenter Supabase (reconnecter si nécessaire)
   if (state.supabaseUrl && state.supabaseKey) {
     if (!supabaseConnected) {
       supabaseConnected = await testSupabase();
