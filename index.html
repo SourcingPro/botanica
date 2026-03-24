@@ -1275,7 +1275,7 @@
   </div>
 </div>
 
-<script>
+<script type="module">
 // ═══════════════════════════════════════════════
 //  STATE & STORAGE
 // ═══════════════════════════════════════════════
@@ -2053,7 +2053,7 @@ async function saveWaterPast() {
   // Mettre à jour lastWatered
   plant.lastWatered = ds;
 
-  // Ajouter à l\'historique
+  // Ajouter à l'historique
   if (!state.wateringHistory) state.wateringHistory = {};
   if (!state.wateringHistory[plantId]) state.wateringHistory[plantId] = [];
   if (!state.wateringHistory[plantId].includes(ds)) {
@@ -2063,7 +2063,7 @@ async function saveWaterPast() {
     state.wateringHistory[plantId] = state.wateringHistory[plantId].slice(0, 30);
   }
 
-  // Si c\'était aujourd\'hui, cocher la tâche
+  // Si c'était aujourd'hui, cocher la tâche
   if (ds === todayStr()) {
     const tasks = getTasksForDate(ds);
     tasks.forEach(t => {
@@ -2086,7 +2086,7 @@ async function waterNow(id) {
   const ds = todayStr();
   plant.lastWatered = ds;
 
-  // Enregistrer dans l\'historique
+  // Enregistrer dans l'historique
   if (!state.wateringHistory) state.wateringHistory = {};
   if (!state.wateringHistory[id]) state.wateringHistory[id] = [];
   // Éviter les doublons le même jour
@@ -2492,7 +2492,7 @@ function selectDayMonth(ds) {
 }
 
 // ════════════════════════════════════════════════
-//  HISTORIQUE D\'ARROSAGE
+//  HISTORIQUE D'ARROSAGE
 // ════════════════════════════════════════════════
 function addWaterHistory(plantId) {
   const ds = todayStr();
@@ -2538,7 +2538,7 @@ function loadNotifUI() {
   if (timeInput && state.notifTime) timeInput.value = state.notifTime;
 }
 
-async async function toggleNotifications() {
+async function toggleNotifications() {
   if (!state.notifEnabled) {
     // Demander la permission
     if ('Notification' in window) {
@@ -2574,7 +2574,7 @@ function saveNotifTime() {
 
 function scheduleNextNotif() {
   if (!state.notifEnabled || !('Notification' in window)) return;
-  // Annuler l\'ancien timer
+  // Annuler l'ancien timer
   if (window._notifTimer) clearTimeout(window._notifTimer);
 
   const [h, m] = (state.notifTime || '08:00').split(':').map(Number);
@@ -2784,7 +2784,7 @@ async function forceSync() {
 }
 
 async function createSupabaseTable() {
-  // Try to create the table via RPC if it doesn\'t exist (best effort)
+  // Try to create the table via RPC if it doesn't exist (best effort)
   try {
     await supabaseReq('botanica_data?select=key&limit=1');
   } catch(e) {
