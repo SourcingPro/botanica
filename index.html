@@ -692,6 +692,76 @@
     margin: 16px 0 8px; display: flex; align-items: center; gap: 6px;
   }
 
+  /* ── MONTH GRID ── */
+  .month-grid {
+    display: grid; grid-template-columns: repeat(7, 1fr);
+    gap: 4px; margin-bottom: 12px;
+  }
+  .month-day-name {
+    text-align: center; font-size: 10px; font-weight: 500;
+    color: var(--text-light); letter-spacing: 0.05em;
+    padding: 4px 0; text-transform: uppercase;
+  }
+  .month-day {
+    aspect-ratio: 1; border-radius: 8px;
+    display: flex; flex-direction: column; align-items: center;
+    justify-content: center; cursor: pointer;
+    font-size: 13px; color: var(--text-dark);
+    background: white; position: relative;
+    transition: all 0.15s; font-family: 'DM Sans', sans-serif;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  }
+  .month-day.empty { background: transparent; box-shadow: none; cursor: default; }
+  .month-day.has-tasks::after {
+    content: ''; position: absolute; bottom: 3px;
+    width: 4px; height: 4px; border-radius: 50%;
+    background: var(--green-500);
+  }
+  .month-day.selected { background: var(--green-700); color: white; }
+  .month-day.selected::after { background: var(--green-200); }
+  .month-day.is-today { font-weight: 700; color: var(--green-600); border: 1.5px solid var(--green-400); }
+  .month-day.is-today.selected { color: white; border-color: var(--green-700); }
+  .month-day.other-month { opacity: 0.35; }
+
+  /* ── WATERING HISTORY ── */
+  .history-list { display: flex; flex-direction: column; gap: 6px; }
+  .history-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 12px; background: var(--green-50);
+    border-radius: var(--radius-sm); font-size: 12px;
+    color: var(--text-mid);
+  }
+  .history-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--green-400); flex-shrink: 0;
+  }
+  .history-date { flex: 1; }
+  .history-days { color: var(--text-light); font-size: 11px; }
+
+  /* ── NOTIFICATIONS ── */
+  .notif-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 16px; background: white;
+    border-radius: var(--radius-sm); margin-bottom: 8px;
+    box-shadow: 0 1px 6px rgba(0,0,0,0.05);
+  }
+  .notif-label { font-size: 14px; color: var(--text-dark); }
+  .notif-sub { font-size: 11px; color: var(--text-light); margin-top: 2px; }
+  .toggle-switch {
+    width: 44px; height: 24px; border-radius: 12px;
+    background: var(--border); position: relative;
+    cursor: pointer; transition: background 0.2s; flex-shrink: 0;
+    border: none;
+  }
+  .toggle-switch.on { background: var(--green-500); }
+  .toggle-switch::after {
+    content: ''; position: absolute; top: 2px; left: 2px;
+    width: 20px; height: 20px; border-radius: 50%;
+    background: white; transition: transform 0.2s;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+  }
+  .toggle-switch.on::after { transform: translateX(20px); }
+
   /* ── WATER QUANTITY ── */
   .water-qty-options {
     display: flex; gap: 8px;
@@ -775,11 +845,19 @@
     <!-- PLANNING VIEW -->
     <div class="view" id="view-planning">
       <div class="calendar-nav">
-        <button class="cal-arrow" onclick="shiftWeek(-1)">‹</button>
+        <button class="cal-arrow" onclick="shiftCal(-1)">‹</button>
         <span class="cal-month-label" id="calMonthLabel"></span>
-        <button class="cal-arrow" onclick="shiftWeek(1)">›</button>
+        <button class="cal-arrow" onclick="shiftCal(1)">›</button>
       </div>
+      <!-- Vue toggle -->
+      <div style="padding:0 16px 10px;display:flex;gap:8px">
+        <button class="annexe-filter active" id="viewToggle2w" onclick="setCalView('2w')">2 semaines</button>
+        <button class="annexe-filter" id="viewToggleMo" onclick="setCalView('month')">Mois</button>
+      </div>
+      <!-- 2-week strip -->
       <div class="week-strip" id="weekStrip"></div>
+      <!-- Month grid -->
+      <div id="monthGrid" style="display:none;padding:0 16px 8px"></div>
       <div class="day-tasks">
         <div class="day-tasks-header" id="dayTasksHeader"></div>
         <div id="dayTasksList"></div>
@@ -876,6 +954,13 @@
               🔄 Forcer la synchronisation
             </button>
             <div id="supabaseStatus" style="margin-top:8px;font-size:12px;color:var(--text-light)"></div>
+          </div>
+        </div>
+
+        <div class="settings-card">
+          <div class="settings-row" onclick="openModal('modalNotif')" style="cursor:pointer">
+            <div class="settings-row-left"><span class="row-icon">🔔</span> Rappels & Notifications</div>
+            <span>›</span>
           </div>
         </div>
 
@@ -1074,6 +1159,69 @@
   </div>
 </div>
 
+<!-- Notifications Modal -->
+<div class="modal-backdrop" id="modalNotif">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-header">
+      <span class="modal-title">🔔 Rappels & Notifications</span>
+      <button class="modal-close" onclick="closeModal('modalNotif')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="notif-row">
+        <div>
+          <div class="notif-label">Rappel quotidien</div>
+          <div class="notif-sub">Notification chaque jour pour vos tâches</div>
+        </div>
+        <button class="toggle-switch" id="notifToggle" onclick="toggleNotifications()"></button>
+      </div>
+      <div id="notifTimeRow" style="display:none">
+        <div class="form-group" style="margin-top:12px">
+          <label class="form-label">Heure du rappel</label>
+          <input type="time" class="form-input" id="notifTime" value="08:00">
+          <button class="btn btn-primary" style="width:100%;margin-top:10px" onclick="saveNotifTime()">
+            ⏰ Enregistrer l'heure
+          </button>
+        </div>
+      </div>
+      <div style="margin-top:16px;padding:12px;background:var(--green-50);border-radius:var(--radius-sm);font-size:12px;color:var(--text-mid);line-height:1.6">
+        💡 Pour que les notifications fonctionnent sur iPhone, l'app doit être ajoutée à l'écran d'accueil et vous devez autoriser les notifications Safari dans <strong>Réglages → Safari → Notifications</strong>.
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Free Task Modal -->
+<div class="modal-backdrop" id="modalFreeTask">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-header">
+      <span class="modal-title">📝 Tâche ponctuelle</span>
+      <button class="modal-close" onclick="closeModal('modalFreeTask')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Description de la tâche *</label>
+        <input type="text" class="form-input" id="freeTaskLabel"
+          placeholder="ex: Acheter de l'engrais, Rempoter le ficus…">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Date</label>
+        <input type="date" class="form-input" id="freeTaskDate">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Plante liée (optionnel)</label>
+        <select class="form-select" id="freeTaskPlant">
+          <option value="">— Aucune plante —</option>
+        </select>
+      </div>
+      <button class="btn btn-primary" style="width:100%" onclick="saveFreeTask()">
+        💾 Ajouter la tâche
+      </button>
+    </div>
+  </div>
+</div>
+
 <script>
 // ═══════════════════════════════════════════════
 //  STATE & STORAGE
@@ -1093,6 +1241,9 @@ let state = {
   tasks: [],
   annexeTasks: [],
   todoChecked: {},
+  wateringHistory: {},  // { plantId: ['2026-03-01', '2026-03-04', ...] }
+  notifEnabled: false,
+  notifTime: '08:00',
   geminiKey: '',
   supabaseUrl: '',
   supabaseKey: '',
@@ -1195,17 +1346,32 @@ async function syncWithSupabase() {
 
     if (cloudTs > localTs) {
       // Cloud plus récent → charger depuis le cloud
-      if (map.plants)      state.plants      = JSON.parse(map.plants);
-      if (map.tasks)       state.tasks       = JSON.parse(map.tasks);
-      if (map.annexeTasks) state.annexeTasks = JSON.parse(map.annexeTasks);
+      if (map.plants)          state.plants          = JSON.parse(map.plants);
+      if (map.tasks)           state.tasks           = JSON.parse(map.tasks);
+      if (map.annexeTasks)     state.annexeTasks     = JSON.parse(map.annexeTasks);
+      if (map.wateringHistory) state.wateringHistory = JSON.parse(map.wateringHistory);
+      if (map.notifEnabled)    state.notifEnabled    = JSON.parse(map.notifEnabled);
+      if (map.notifTime)       state.notifTime       = JSON.parse(map.notifTime);
       // todoChecked : toujours fusionner (union) pour ne rien perdre
       const cloudChecked = map.todoChecked ? JSON.parse(map.todoChecked) : {};
       state.todoChecked = Object.assign({}, cloudChecked, state.todoChecked);
     } else {
-      // Local plus récent ou égal → on garde le local, on fusionne les coches
+      // Local plus récent → on fusionne les coches et on envoie vers le cloud
       const cloudChecked = map.todoChecked ? JSON.parse(map.todoChecked) : {};
+      const cloudHistory = map.wateringHistory ? JSON.parse(map.wateringHistory) : {};
+      // Fusionner wateringHistory : garder toutes les dates des deux sources
+      if (!state.wateringHistory) state.wateringHistory = {};
+      Object.keys(cloudHistory).forEach(plantId => {
+        if (!state.wateringHistory[plantId]) state.wateringHistory[plantId] = [];
+        cloudHistory[plantId].forEach(d => {
+          if (!state.wateringHistory[plantId].includes(d)) {
+            state.wateringHistory[plantId].push(d);
+          }
+        });
+        state.wateringHistory[plantId].sort((a,b) => b.localeCompare(a));
+        state.wateringHistory[plantId] = state.wateringHistory[plantId].slice(0, 30);
+      });
       state.todoChecked = Object.assign({}, cloudChecked, state.todoChecked);
-      // Envoyer le local vers le cloud
       await saveToSupabase();
     }
     saveLocal();
@@ -1219,11 +1385,14 @@ async function loadFromSupabase() {
 async function saveToSupabase() {
   if (!supabaseConnected) return;
   const rows = [
-    {key:'plants',      value: JSON.stringify(state.plants)},
-    {key:'tasks',       value: JSON.stringify(state.tasks)},
-    {key:'todoChecked', value: JSON.stringify(state.todoChecked)},
-    {key:'annexeTasks', value: JSON.stringify(state.annexeTasks)},
-    {key:'_timestamp',  value: String(Date.now())}
+    {key:'plants',         value: JSON.stringify(state.plants)},
+    {key:'tasks',          value: JSON.stringify(state.tasks)},
+    {key:'todoChecked',    value: JSON.stringify(state.todoChecked)},
+    {key:'annexeTasks',    value: JSON.stringify(state.annexeTasks)},
+    {key:'wateringHistory',value: JSON.stringify(state.wateringHistory)},
+    {key:'notifEnabled',   value: JSON.stringify(state.notifEnabled)},
+    {key:'notifTime',      value: JSON.stringify(state.notifTime)},
+    {key:'_timestamp',     value: String(Date.now())}
   ];
   try {
     await supabaseReq('botanica_data?on_conflict=key', 'POST', rows);
@@ -1461,11 +1630,18 @@ async function toggleTodo(checkKey, plantId, type, taskId) {
   // Sauvegarde locale immédiate
   saveLocal();
 
-  // Si arrosage coché : mettre à jour lastWatered
+  // Si arrosage coché : mettre à jour lastWatered + historique
   if (nowDone && type === 'water' && plantId) {
     const plant = state.plants.find(p => p.id === plantId);
     if (plant) {
       plant.lastWatered = todayStr();
+      // Historique
+      if (!state.wateringHistory) state.wateringHistory = {};
+      if (!state.wateringHistory[plantId]) state.wateringHistory[plantId] = [];
+      if (!state.wateringHistory[plantId].includes(todayStr())) {
+        state.wateringHistory[plantId].unshift(todayStr());
+        state.wateringHistory[plantId] = state.wateringHistory[plantId].slice(0, 30);
+      }
       showToast(`💧 ${plant.name} arrosé·e !`);
     }
   } else if (nowDone) {
@@ -1716,6 +1892,24 @@ function openDetail(id) {
         <div class="detail-section-title">Notes personnelles</div>
         <div class="detail-notes">${escHtml(p.notes)}</div>
       </div>` : ''}
+      <div class="detail-section">
+        <div class="detail-section-title">Historique des arrosages</div>
+        ${(() => {
+          const hist = (state.wateringHistory && state.wateringHistory[p.id]) || [];
+          if (!hist.length) return `<div style="font-size:12px;color:var(--text-light);padding:10px 0">Aucun arrosage enregistré pour l'instant.</div>`;
+          return `<div class="detail-info-card">` +
+            hist.slice(0, 10).map((ds, i) => {
+              const d = new Date(ds);
+              const isLast = i === 0;
+              return `<div class="detail-info-row">
+                <span class="detail-info-label">${isLast ? '🟢 Dernier' : `#${i+1}`}</span>
+                <span class="detail-info-value" style="${isLast ? 'color:var(--green-600);font-weight:600' : ''}">${formatDate(d, true)}</span>
+              </div>`;
+            }).join('') +
+            (hist.length > 10 ? `<div style="padding:6px 0;font-size:11px;color:var(--text-light);text-align:center">+ ${hist.length - 10} arrosages plus anciens</div>` : '') +
+            `</div>`;
+        })()}
+      </div>
       <div class="water-btn-row">
         <button class="btn btn-primary" style="flex:1" onclick="waterNow('${p.id}')">
           💧 Arroser maintenant
@@ -1731,15 +1925,26 @@ function openDetail(id) {
 async function waterNow(id) {
   const plant = state.plants.find(p => p.id===id);
   if (!plant) return;
-  plant.lastWatered = todayStr();
-  // Also mark the today todo if exists
   const ds = todayStr();
+  plant.lastWatered = ds;
+
+  // Enregistrer dans l'historique
+  if (!state.wateringHistory) state.wateringHistory = {};
+  if (!state.wateringHistory[id]) state.wateringHistory[id] = [];
+  // Éviter les doublons le même jour
+  if (!state.wateringHistory[id].includes(ds)) {
+    state.wateringHistory[id].unshift(ds); // plus récent en premier
+    state.wateringHistory[id] = state.wateringHistory[id].slice(0, 30); // garder 30 max
+  }
+
+  // Cocher la tâche du jour si elle existe
   const tasks = getTasksForDate(ds);
   tasks.forEach(t => {
     if (t.plantId === id && t.type === 'water') {
       state.todoChecked[t.id + '_' + ds] = true;
     }
   });
+
   await persistAll();
   closeModal('modalDetail');
   renderAll();
@@ -1813,9 +2018,14 @@ function renderDayTasks() {
   if (!tasks.length) {
     el.innerHTML = `<div style="text-align:center;padding:30px;color:var(--text-light);font-size:13px">
       Aucune tâche ce jour-là 🌿<br>
-      <button class="btn btn-ghost" style="margin-top:12px" onclick="openAddTaskForDate('${selectedCalDay}')">
-        + Ajouter une tâche
-      </button>
+      <div style="display:flex;gap:8px;justify-content:center;margin-top:12px;flex-wrap:wrap">
+        <button class="btn btn-ghost" onclick="openAddTaskForDate('${selectedCalDay}')">
+          📅 Tâche récurrente
+        </button>
+        <button class="btn btn-ghost" onclick="openFreeTask('${selectedCalDay}')">
+          📝 Tâche ponctuelle
+        </button>
+      </div>
     </div>`;
     return;
   }
@@ -1832,11 +2042,17 @@ function renderDayTasks() {
           <span class="tag ${TASK_TAGS[t.type]}">${TASK_ICONS[t.type]} ${TASK_LABELS[t.type]||t.type}</span>
           ${t.repeat > 0 ? `<span style="font-size:10px;color:var(--text-light);margin-left:6px">🔄 tous les ${t.repeat}j</span>` : ''}
           ${t.isAuto ? '<span style="font-size:10px;color:var(--text-light);margin-left:6px">automatique</span>' : ''}
+          ${t.isFree ? '<span style="font-size:10px;color:#7c3aed;margin-left:6px">ponctuelle</span>' : ''}
         </div>
       </div>
       ${!t.isAuto ? `<button class="planning-task-del" onclick="deleteTask('${t.id}')">🗑️</button>` : ''}
     </div>`;
-  }).join('');
+  }).join('') +
+  `<div style="text-align:center;padding:12px 0">
+    <button class="btn btn-ghost" style="font-size:12px" onclick="openFreeTask('${selectedCalDay}')">
+      + Ajouter une tâche ponctuelle
+    </button>
+  </div>`;
 }
 
 // ── TASK FORM ──────────────────────────────────
@@ -1892,6 +2108,36 @@ async function deleteTask(id) {
   await persistAll();
   renderAll();
   showToast('🗑️ Tâche supprimée');
+}
+
+// ── TÂCHES PONCTUELLES LIBRES ──────────────────
+function openFreeTask(dateStr) {
+  document.getElementById('freeTaskLabel').value = '';
+  document.getElementById('freeTaskDate').value = dateStr || selectedCalDay || todayStr();
+  const sel = document.getElementById('freeTaskPlant');
+  sel.innerHTML = '<option value="">— Aucune plante —</option>' +
+    state.plants.map(p => `<option value="${p.id}">${p.emoji} ${p.name}</option>`).join('');
+  openModal('modalFreeTask');
+}
+
+async function saveFreeTask() {
+  const label = document.getElementById('freeTaskLabel').value.trim();
+  if (!label) { showToast('⚠️ Donnez un nom à la tâche'); return; }
+  const task = {
+    id: uid(),
+    plantId: document.getElementById('freeTaskPlant').value || null,
+    type: 'custom',
+    name: label,
+    label: label,
+    date: document.getElementById('freeTaskDate').value || todayStr(),
+    repeat: 0,
+    isFree: true
+  };
+  state.tasks.push(task);
+  await persistAll();
+  closeModal('modalFreeTask');
+  renderAll();
+  showToast('📝 Tâche ajoutée !');
 }
 
 // ════════════════════════════════════════════════
@@ -2010,6 +2256,192 @@ function renderAnnexe() {
   });
 
   container.innerHTML = html;
+}
+
+// ════════════════════════════════════════════════
+//  VUE MENSUELLE
+// ════════════════════════════════════════════════
+let calView = '2w'; // '2w' ou 'month'
+let calMonthOffset = 0; // pour naviguer dans la vue mois
+
+function setCalView(v) {
+  calView = v;
+  document.getElementById('viewToggle2w').classList.toggle('active', v === '2w');
+  document.getElementById('viewToggleMo').classList.toggle('active', v === 'month');
+  document.getElementById('weekStrip').style.display  = v === '2w' ? 'flex' : 'none';
+  document.getElementById('monthGrid').style.display  = v === 'month' ? 'block' : 'none';
+  if (v === 'month') renderMonth();
+  else renderPlanning();
+}
+
+function shiftCal(dir) {
+  if (calView === '2w') { calWeekOffset += dir; renderPlanning(); }
+  else { calMonthOffset += dir; renderMonth(); }
+}
+
+function renderMonth() {
+  const today = new Date(); today.setHours(0,0,0,0);
+  const base = new Date(today.getFullYear(), today.getMonth() + calMonthOffset, 1);
+  const year = base.getFullYear();
+  const month = base.getMonth();
+
+  // Label mois
+  document.getElementById('calMonthLabel').textContent =
+    base.toLocaleDateString('fr-FR', {month:'long', year:'numeric'})
+      .replace(/^\w/, c => c.toUpperCase());
+
+  // Nb jours dans le mois
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  // Jour de la semaine du 1er (lundi=0)
+  let firstDow = new Date(year, month, 1).getDay();
+  firstDow = firstDow === 0 ? 6 : firstDow - 1;
+
+  const grid = document.getElementById('monthGrid');
+  let html = `<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:8px">`;
+  ['L','M','M','J','V','S','D'].forEach(d => {
+    html += `<div style="text-align:center;font-size:10px;font-weight:600;color:var(--text-light);padding:4px 0">${d}</div>`;
+  });
+  html += '</div><div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px">';
+
+  // Cases vides avant le 1er
+  for (let i = 0; i < firstDow; i++) {
+    html += `<div class="month-day other-month"></div>`;
+  }
+
+  for (let day = 1; day <= daysInMonth; day++) {
+    const d = new Date(year, month, day);
+    const ds = dateToStr(d);
+    const tasks = getTasksForDate(ds);
+    const isToday = ds === todayStr();
+    const isSel = ds === selectedCalDay;
+    html += `<div class="month-day ${tasks.length?'has-tasks':''} ${isToday?'is-today':''} ${isSel?'selected':''}"
+      onclick="selectDayMonth('${ds}')">
+      <span>${day}</span>
+      ${tasks.length ? `<div style="display:flex;gap:2px;justify-content:center;margin-top:2px">
+        ${tasks.slice(0,3).map(() => '<div style="width:4px;height:4px;border-radius:50%;background:currentColor;opacity:0.7"></div>').join('')}
+      </div>` : ''}
+    </div>`;
+  }
+  html += '</div>';
+  grid.innerHTML = html;
+  renderDayTasks();
+}
+
+function selectDayMonth(ds) {
+  selectedCalDay = ds;
+  renderMonth();
+  renderDayTasks();
+}
+
+// ════════════════════════════════════════════════
+//  HISTORIQUE D'ARROSAGE
+// ════════════════════════════════════════════════
+function addWaterHistory(plantId) {
+  const ds = todayStr();
+  if (!state.wateringHistory[plantId]) state.wateringHistory[plantId] = [];
+  // Éviter les doublons sur le même jour
+  if (!state.wateringHistory[plantId].includes(ds)) {
+    state.wateringHistory[plantId].unshift(ds);
+    // Garder seulement les 20 derniers
+    if (state.wateringHistory[plantId].length > 20) {
+      state.wateringHistory[plantId] = state.wateringHistory[plantId].slice(0, 20);
+    }
+  }
+}
+
+function renderWaterHistory(plantId) {
+  const history = state.wateringHistory[plantId] || [];
+  if (!history.length) return `<div style="font-size:12px;color:var(--text-light);padding:8px 0">Aucun arrosage enregistré</div>`;
+
+  return `<div class="history-list">
+    ${history.slice(0, 10).map((ds, i) => {
+      const d = new Date(ds);
+      const prev = history[i + 1] ? new Date(history[i + 1]) : null;
+      const gap = prev ? Math.round((d - prev) / 86400000) : null;
+      return `<div class="history-item">
+        <div class="history-dot"></div>
+        <div class="history-date">${formatDate(d, false)}</div>
+        ${gap !== null ? `<div class="history-days">+${gap}j</div>` : '<div class="history-days">premier</div>'}
+      </div>`;
+    }).join('')}
+  </div>`;
+}
+
+// ════════════════════════════════════════════════
+//  NOTIFICATIONS
+// ════════════════════════════════════════════════
+function loadNotifUI() {
+  const toggle = document.getElementById('notifToggle');
+  const timeRow = document.getElementById('notifTimeRow');
+  if (!toggle) return;
+  toggle.classList.toggle('on', !!state.notifEnabled);
+  if (timeRow) timeRow.style.display = state.notifEnabled ? 'block' : 'none';
+  const timeInput = document.getElementById('notifTime');
+  if (timeInput && state.notifTime) timeInput.value = state.notifTime;
+}
+
+async async function toggleNotifications() {
+  if (!state.notifEnabled) {
+    // Demander la permission
+    if ('Notification' in window) {
+      const perm = await Notification.requestPermission();
+      if (perm !== 'granted') {
+        showToast('❌ Permission refusée — activez-la dans Réglages iPhone → Safari → Notifications');
+        return;
+      }
+    } else {
+      showToast('⚠️ Notifications non supportées sur ce navigateur');
+      return;
+    }
+    state.notifEnabled = true;
+    scheduleNextNotif();
+    showToast('🔔 Notifications activées !');
+  } else {
+    state.notifEnabled = false;
+    if (window._notifTimer) clearTimeout(window._notifTimer);
+    showToast('🔕 Notifications désactivées');
+  }
+  saveLocal();
+  loadNotifUI();
+}
+
+function saveNotifTime() {
+  const val = document.getElementById('notifTime').value;
+  state.notifTime = val;
+  saveLocal();
+  scheduleNextNotif();
+  showToast(`⏰ Rappel enregistré à ${val}`);
+  closeModal('modalNotif');
+}
+
+function scheduleNextNotif() {
+  if (!state.notifEnabled || !('Notification' in window)) return;
+  // Annuler l'ancien timer
+  if (window._notifTimer) clearTimeout(window._notifTimer);
+
+  const [h, m] = (state.notifTime || '08:00').split(':').map(Number);
+  const now = new Date();
+  const next = new Date();
+  next.setHours(h, m, 0, 0);
+  if (next <= now) next.setDate(next.getDate() + 1); // demain si déjà passé
+
+  const delay = next - now;
+  window._notifTimer = setTimeout(() => {
+    fireNotification();
+    // Re-programmer pour le lendemain
+    scheduleNextNotif();
+  }, delay);
+}
+
+function fireNotification() {
+  if (!state.notifEnabled || Notification.permission !== 'granted') return;
+  const tasks = getTasksForDate(todayStr());
+  const pending = tasks.filter(t => !state.todoChecked[t.id + '_' + todayStr()]);
+  if (!pending.length) return;
+  new Notification('🌿 Botanica', {
+    body: `${pending.length} tâche${pending.length > 1 ? 's' : ''} à faire aujourd'hui !`,
+    icon: '/favicon.ico'
+  });
 }
 
 // ════════════════════════════════════════════════
