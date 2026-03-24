@@ -1889,6 +1889,29 @@ async function deletePlant() {
   showToast('🗑️ Plante supprimée');
 }
 
+// ── HELPER : historique arrosage en HTML ───────
+function buildWateringHistory(plantId) {
+  const hist = (state.wateringHistory && state.wateringHistory[plantId]) || [];
+  if (!hist.length) {
+    return '<div style="font-size:12px;color:var(--text-light);padding:10px 0">Aucun arrosage enregistré pour l\'instant.</div>';
+  }
+  let html = '<div class="detail-info-card">';
+  hist.slice(0, 10).forEach((ds, i) => {
+    const d = new Date(ds);
+    const isLast = i === 0;
+    const labelStyle = isLast ? 'color:var(--green-600);font-weight:600' : '';
+    html += '<div class="detail-info-row">';
+    html += '<span class="detail-info-label">' + (isLast ? '🟢 Dernier' : '#' + (i + 1)) + '</span>';
+    html += '<span class="detail-info-value" style="' + labelStyle + '">' + formatDate(d, true) + '</span>';
+    html += '</div>';
+  });
+  if (hist.length > 10) {
+    html += '<div style="padding:6px 0;font-size:11px;color:var(--text-light);text-align:center">+ ' + (hist.length - 10) + ' arrosages plus anciens</div>';
+  }
+  html += '</div>';
+  return html;
+}
+
 // ── PLANT DETAIL ───────────────────────────────
 function openDetail(id) {
   const p = state.plants.find(x => x.id===id);
@@ -1947,21 +1970,7 @@ function openDetail(id) {
       </div>` : ''}
       <div class="detail-section">
         <div class="detail-section-title">Historique des arrosages</div>
-        ${(() => {
-          const hist = (state.wateringHistory && state.wateringHistory[p.id]) || [];
-          if (!hist.length) return `<div style="font-size:12px;color:var(--text-light);padding:10px 0">Aucun arrosage enregistré pour l'instant.</div>`;
-          return `<div class="detail-info-card">` +
-            hist.slice(0, 10).map((ds, i) => {
-              const d = new Date(ds);
-              const isLast = i === 0;
-              return `<div class="detail-info-row">
-                <span class="detail-info-label">${isLast ? '🟢 Dernier' : `#${i+1}`}</span>
-                <span class="detail-info-value" style="${isLast ? 'color:var(--green-600);font-weight:600' : ''}">${formatDate(d, true)}</span>
-              </div>`;
-            }).join('') +
-            (hist.length > 10 ? `<div style="padding:6px 0;font-size:11px;color:var(--text-light);text-align:center">+ ${hist.length - 10} arrosages plus anciens</div>` : '') +
-            `</div>`;
-        })()}
+        ${buildWateringHistory(p.id)}
       </div>
       <div class="water-btn-row">
         <button class="btn btn-primary" style="flex:1" onclick="waterNow('${p.id}')">
