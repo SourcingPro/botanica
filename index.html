@@ -1222,6 +1222,59 @@
   </div>
 </div>
 
+<!-- Past Watering Modal -->
+<div class="modal-backdrop" id="modalWaterPast">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-header">
+      <span class="modal-title">💧 Date d'arrosage</span>
+      <button class="modal-close" onclick="closeModal('modalWaterPast')">✕</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:13px;color:var(--text-mid);margin-bottom:16px;line-height:1.5">
+        Indiquez quand vous avez arrosé cette plante. Le prochain arrosage et l'historique seront recalculés automatiquement.
+      </p>
+
+      <!-- Raccourcis rapides -->
+      <div class="form-group">
+        <label class="form-label">Raccourcis</label>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="rhythm-opt" onclick="setWaterPastDate(0)" style="flex:none;padding:8px 14px">
+            Aujourd'hui
+          </button>
+          <button class="rhythm-opt" onclick="setWaterPastDate(-1)" style="flex:none;padding:8px 14px">
+            Hier
+          </button>
+          <button class="rhythm-opt" onclick="setWaterPastDate(-2)" style="flex:none;padding:8px 14px">
+            Il y a 2j
+          </button>
+          <button class="rhythm-opt" onclick="setWaterPastDate(-3)" style="flex:none;padding:8px 14px">
+            Il y a 3j
+          </button>
+          <button class="rhythm-opt" onclick="setWaterPastDate(-5)" style="flex:none;padding:8px 14px">
+            Il y a 5j
+          </button>
+          <button class="rhythm-opt" onclick="setWaterPastDate(-7)" style="flex:none;padding:8px 14px">
+            Il y a 7j
+          </button>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Ou choisir une date précise</label>
+        <input type="date" class="form-input" id="waterPastDate">
+      </div>
+
+      <div style="background:var(--green-50);border-radius:var(--radius-sm);padding:12px;margin-bottom:16px;font-size:12px;color:var(--text-mid)" id="waterPastPreview"></div>
+
+      <input type="hidden" id="waterPastPlantId">
+      <button class="btn btn-primary" style="width:100%" onclick="saveWaterPast()">
+        💾 Enregistrer cet arrosage
+      </button>
+    </div>
+  </div>
+</div>
+
 <script>
 // ═══════════════════════════════════════════════
 //  STATE & STORAGE
@@ -1918,8 +1971,104 @@ function openDetail(id) {
           ✏️ Modifier
         </button>
       </div>
+      <button class="btn btn-ghost" style="width:100%;margin-top:8px" onclick="openWaterPast('${p.id}')">
+        📅 J'ai arrosé un autre jour…
+      </button>
     </div>`;
   openModal('modalDetail');
+}
+
+// ── ARROSAGE DATE PASSÉE ───────────────────────
+function openWaterPast(plantId) {
+  document.getElementById('waterPastPlantId').value = plantId;
+  // Pré-remplir avec hier par défaut
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  const ds = yesterday.toISOString().slice(0, 10);
+  document.getElementById('waterPastDate').value = ds;
+  document.getElementById('waterPastDate').max = todayStr();
+  document.getElementById('waterPastDate').oninput = updateWaterPastPreview;
+  closeModal('modalDetail');
+  updateWaterPastPreview();
+  openModal('modalWaterPast');
+}
+
+function setWaterPastDate(daysOffset) {
+  const d = new Date();
+  d.setDate(d.getDate() + daysOffset);
+  const ds = d.toISOString().slice(0, 10);
+  document.getElementById('waterPastDate').value = ds;
+  // Highlight selected button
+  document.querySelectorAll('#modalWaterPast .rhythm-opt').forEach(btn => {
+    btn.classList.remove('selected');
+  });
+  event.target.classList.add('selected');
+  updateWaterPastPreview();
+}
+
+function updateWaterPastPreview() {
+  const plantId = document.getElementById('waterPastPlantId').value;
+  const ds = document.getElementById('waterPastDate').value;
+  const plant = state.plants.find(p => p.id === plantId);
+  const preview = document.getElementById('waterPastPreview');
+  if (!plant || !ds) { preview.textContent = ''; return; }
+
+  const waterDate = new Date(ds);
+  const nextDate = new Date(waterDate);
+  nextDate.setDate(nextDate.getDate() + (plant.waterDays || 7));
+
+  const today = new Date(); today.setHours(0,0,0,0);
+  const daysUntilNext = Math.round((nextDate - today) / 86400000);
+
+  let nextLabel = '';
+  if (daysUntilNext < 0)       nextLabel = `En retard de ${-daysUntilNext} jour(s)`;
+  else if (daysUntilNext === 0) nextLabel = 'Aujourd\'hui !';
+  else if (daysUntilNext === 1) nextLabel = 'Demain';
+  else                          nextLabel = `Dans ${daysUntilNext} jours`;
+
+  preview.innerHTML = `
+    🌿 <strong>${plant.name}</strong><br>
+    Dernier arrosage : <strong>${formatDate(waterDate)}</strong><br>
+    Prochain arrosage : <strong>${formatDate(nextDate)}</strong> (${nextLabel})
+  `;
+}
+
+async function saveWaterPast() {
+  const plantId = document.getElementById('waterPastPlantId').value;
+  const ds = document.getElementById('waterPastDate').value;
+  if (!ds) { showToast('⚠️ Choisissez une date'); return; }
+
+  const plant = state.plants.find(p => p.id === plantId);
+  if (!plant) return;
+
+  // Mettre à jour lastWatered
+  plant.lastWatered = ds;
+
+  // Ajouter à l'historique
+  if (!state.wateringHistory) state.wateringHistory = {};
+  if (!state.wateringHistory[plantId]) state.wateringHistory[plantId] = [];
+  if (!state.wateringHistory[plantId].includes(ds)) {
+    state.wateringHistory[plantId].push(ds);
+    // Trier du plus récent au plus ancien
+    state.wateringHistory[plantId].sort((a, b) => b.localeCompare(a));
+    state.wateringHistory[plantId] = state.wateringHistory[plantId].slice(0, 30);
+  }
+
+  // Si c'était aujourd'hui, cocher la tâche
+  if (ds === todayStr()) {
+    const tasks = getTasksForDate(ds);
+    tasks.forEach(t => {
+      if (t.plantId === plantId && t.type === 'water') {
+        state.todoChecked[t.id + '_' + ds] = true;
+      }
+    });
+  }
+
+  await persistAll();
+  closeModal('modalWaterPast');
+  renderAll();
+  const waterDate = new Date(ds);
+  showToast(`✅ Arrosage enregistré le ${formatDate(waterDate)} !`);
 }
 
 async function waterNow(id) {
