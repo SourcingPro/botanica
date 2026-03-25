@@ -1275,7 +1275,7 @@
   </div>
 </div>
 
-<script type="module">
+<script>
 // ═══════════════════════════════════════════════
 //  STATE & STORAGE
 // ═══════════════════════════════════════════════
@@ -2894,6 +2894,50 @@ setInterval(() => {
   renderHeader();
   renderToday();
 }, 60000);
+
+// ── Expose functions to global scope for HTML onclick handlers ──
+if (typeof switchTab !== "undefined") window.switchTab = switchTab;
+if (typeof openFab !== "undefined") window.openFab = openFab;
+if (typeof openModal !== "undefined") window.openModal = openModal;
+if (typeof closeModal !== "undefined") window.closeModal = closeModal;
+if (typeof addAnnexeTask !== "undefined") window.addAnnexeTask = addAnnexeTask;
+if (typeof setAnnexeFilter !== "undefined") window.setAnnexeFilter = setAnnexeFilter;
+if (typeof toggleAnnexe !== "undefined") window.toggleAnnexe = toggleAnnexe;
+if (typeof deleteAnnexe !== "undefined") window.deleteAnnexe = deleteAnnexe;
+if (typeof savePlant !== "undefined") window.savePlant = savePlant;
+if (typeof deletePlant !== "undefined") window.deletePlant = deletePlant;
+if (typeof openAddPlant !== "undefined") window.openAddPlant = openAddPlant;
+if (typeof openEditPlant !== "undefined") window.openEditPlant = openEditPlant;
+if (typeof openDetail !== "undefined") window.openDetail = openDetail;
+if (typeof waterNow !== "undefined") window.waterNow = waterNow;
+if (typeof openWaterPast !== "undefined") window.openWaterPast = openWaterPast;
+if (typeof saveWaterPast !== "undefined") window.saveWaterPast = saveWaterPast;
+if (typeof setWaterPastDate !== "undefined") window.setWaterPastDate = setWaterPastDate;
+if (typeof saveTask !== "undefined") window.saveTask = saveTask;
+if (typeof deleteTask !== "undefined") window.deleteTask = deleteTask;
+if (typeof openAddTask !== "undefined") window.openAddTask = openAddTask;
+if (typeof openFreeTask !== "undefined") window.openFreeTask = openFreeTask;
+if (typeof saveFreeTask !== "undefined") window.saveFreeTask = saveFreeTask;
+if (typeof selectEmoji !== "undefined") window.selectEmoji = selectEmoji;
+if (typeof selectRhythm !== "undefined") window.selectRhythm = selectRhythm;
+if (typeof selectWaterQty !== "undefined") window.selectWaterQty = selectWaterQty;
+if (typeof toggleRepeat !== "undefined") window.toggleRepeat = toggleRepeat;
+if (typeof updateRepeatLabel !== "undefined") window.updateRepeatLabel = updateRepeatLabel;
+if (typeof sendChat !== "undefined") window.sendChat = sendChat;
+if (typeof sendChatMsg !== "undefined") window.sendChatMsg = sendChatMsg;
+if (typeof saveGeminiKey !== "undefined") window.saveGeminiKey = saveGeminiKey;
+if (typeof saveSupabase !== "undefined") window.saveSupabase = saveSupabase;
+if (typeof forceSync !== "undefined") window.forceSync = forceSync;
+if (typeof exportData !== "undefined") window.exportData = exportData;
+if (typeof confirmImport !== "undefined") window.confirmImport = confirmImport;
+if (typeof confirmClear !== "undefined") window.confirmClear = confirmClear;
+if (typeof toggleNotifications !== "undefined") window.toggleNotifications = toggleNotifications;
+if (typeof saveNotifTime !== "undefined") window.saveNotifTime = saveNotifTime;
+if (typeof setCalView !== "undefined") window.setCalView = setCalView;
+if (typeof shiftCal !== "undefined") window.shiftCal = shiftCal;
+if (typeof selectDay !== "undefined") window.selectDay = selectDay;
+if (typeof selectDayMonth !== "undefined") window.selectDayMonth = selectDayMonth;
+if (typeof openAddTaskForDate !== "undefined") window.openAddTaskForDate = openAddTaskForDate;
 </script>
 </body>
 </html>
