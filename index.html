@@ -1321,9 +1321,11 @@ window.addEventListener('DOMContentLoaded', async () => {
   loadLocal();
   renderHeader();
   loadSettingsUI();
-  await trySupabaseInit();
+  // Affichage initial rapide avec données locales
   renderAll();
   setupChatInput();
+  // Puis sync Supabase — re-render automatique après
+  await trySupabaseInit();
 });
 
 function loadLocal() {
@@ -1348,16 +1350,21 @@ function saveLocal() {
 }
 
 async function trySupabaseInit() {
-  if (state.supabaseUrl && state.supabaseKey) {
-    const status = document.getElementById('supabaseStatus');
-    if (status) status.textContent = '⏳ Connexion à Supabase…';
-    supabaseConnected = await testSupabase();
-    if (supabaseConnected) {
-      await syncWithSupabase();
-      if (status) status.textContent = '✅ Supabase connecté — données synchronisées !';
-    } else {
-      if (status) status.textContent = '❌ Connexion Supabase échouée.';
-    }
+  if (!state.supabaseUrl || !state.supabaseKey) return;
+
+  const status = document.getElementById('supabaseStatus');
+  if (status) status.textContent = '⏳ Connexion à Supabase…';
+
+  supabaseConnected = await testSupabase();
+
+  if (supabaseConnected) {
+    await syncWithSupabase();
+    if (status) status.textContent = '✅ Supabase connecté — données synchronisées !';
+    // Toujours re-render après chargement cloud pour afficher les données
+    renderAll();
+    loadSettingsUI();
+  } else {
+    if (status) status.textContent = '❌ Connexion Supabase échouée — vérifiez votre connexion.';
   }
 }
 
@@ -1394,41 +1401,51 @@ async function syncWithSupabase() {
     const map = {};
     if (rows && rows.length) rows.forEach(r => { map[r.key] = r.value; });
 
-    const cloudTs = map._timestamp ? parseInt(map._timestamp) : 0;
-    const localTs = state._localTimestamp || 0;
+    const cloudTs  = map._timestamp ? parseInt(map._timestamp) : 0;
+    const localTs  = state._localTimestamp || 0;
+    const hasLocalData = state.plants.length > 0 || state.tasks.length > 0;
 
-    if (cloudTs > localTs) {
-      // Cloud plus récent → charger depuis le cloud
+    if (cloudTs === 0) {
+      // Rien dans Supabase → envoyer les données locales
+      await saveToSupabase();
+      return;
+    }
+
+    if (!hasLocalData || cloudTs > localTs) {
+      // Nouvel appareil OU cloud plus récent → charger depuis le cloud
       if (map.plants)          state.plants          = JSON.parse(map.plants);
       if (map.tasks)           state.tasks           = JSON.parse(map.tasks);
       if (map.annexeTasks)     state.annexeTasks     = JSON.parse(map.annexeTasks);
       if (map.wateringHistory) state.wateringHistory = JSON.parse(map.wateringHistory);
       if (map.notifEnabled)    state.notifEnabled    = JSON.parse(map.notifEnabled);
       if (map.notifTime)       state.notifTime       = JSON.parse(map.notifTime);
-      // todoChecked : toujours fusionner (union) pour ne rien perdre
+      // todoChecked : fusionner pour ne jamais perdre une coche
       const cloudChecked = map.todoChecked ? JSON.parse(map.todoChecked) : {};
       state.todoChecked = Object.assign({}, cloudChecked, state.todoChecked);
+      saveLocal();
     } else {
-      // Local plus récent → on fusionne les coches et on envoie vers le cloud
+      // Local plus récent → fusionner et envoyer vers cloud
       const cloudChecked = map.todoChecked ? JSON.parse(map.todoChecked) : {};
       const cloudHistory = map.wateringHistory ? JSON.parse(map.wateringHistory) : {};
-      // Fusionner wateringHistory : garder toutes les dates des deux sources
+      // Fusionner todoChecked
+      state.todoChecked = Object.assign({}, cloudChecked, state.todoChecked);
+      // Fusionner wateringHistory
       if (!state.wateringHistory) state.wateringHistory = {};
       Object.keys(cloudHistory).forEach(plantId => {
         if (!state.wateringHistory[plantId]) state.wateringHistory[plantId] = [];
         cloudHistory[plantId].forEach(d => {
-          if (!state.wateringHistory[plantId].includes(d)) {
+          if (!state.wateringHistory[plantId].includes(d))
             state.wateringHistory[plantId].push(d);
-          }
         });
-        state.wateringHistory[plantId].sort((a,b) => b.localeCompare(a));
+        state.wateringHistory[plantId].sort((a, b) => b.localeCompare(a));
         state.wateringHistory[plantId] = state.wateringHistory[plantId].slice(0, 30);
       });
-      state.todoChecked = Object.assign({}, cloudChecked, state.todoChecked);
       await saveToSupabase();
+      saveLocal();
     }
-    saveLocal();
-  } catch(e) { console.warn('Supabase sync error', e); }
+  } catch(e) {
+    console.warn('Supabase sync error', e);
+  }
 }
 
 async function loadFromSupabase() {
@@ -2767,16 +2784,18 @@ async function saveSupabase() {
 async function forceSync() {
   const status = document.getElementById('supabaseStatus');
   if (!state.supabaseUrl || !state.supabaseKey) {
-    showToast('⚠️ Configurez Supabase d\'abord');
+    showToast('⚠️ Configurez Supabase dabord');
     return;
   }
   status.textContent = '⏳ Synchronisation en cours…';
   const ok = await testSupabase();
   if (ok) {
     supabaseConnected = true;
-    await saveToSupabase();
-    status.textContent = '✅ Données envoyées vers Supabase !';
+    await syncWithSupabase();
+    status.textContent = '✅ Données synchronisées !';
     showToast('✅ Données synchronisées !');
+    renderAll();
+    loadSettingsUI();
   } else {
     status.textContent = '❌ Connexion échouée.';
     showToast('❌ Connexion Supabase échouée');
